@@ -39,7 +39,7 @@ from scipy import polyfit
 from scipy import polyval
 from scipy.stats.stats import pearsonr
 
-import get_mda5 as gmda
+import get_mda as gmda
 import edge_tables as etab
 
 
