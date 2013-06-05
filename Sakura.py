@@ -351,18 +351,17 @@ class MainFrame ( wx.Frame ):
         self.canvasChiAverage.SetEnableZoom(True)
         self.canvasChiAverage.SetEnableGrid(True)
         self.canvasChiAverage.SetGridColour('grey')
-    
-        for i in range(len(self.panel_ids)) :
-            panel = wx.FindWindowById(self.panel_ids[i])
-            executeCommand = "self.canvasSingleSpectra"+str(i)+" = plot.PlotCanvas(panel)"
-            exec(executeCommand)
-            exec( "self.canvasSingleSpectra"+str(i)+".SetInitialSize(size = panel.GetSize())" )
-            exec( "self.canvasSingleSpectra"+str(i)+".SetEnableZoom(True)" )
-            exec( "self.canvasSingleSpectra"+str(i)+".SetEnableGrid(True)" )
-            exec( "self.canvasSingleSpectra"+str(i)+".SetGridColour('grey')" )
-            
-    
-        
+
+        self.canvasSingleSpectra = []
+        for i in self.panel_ids:
+            panel = wx.FindWindowById(i)
+            canvas = plot.PlotCanvas(panel)
+            canvas.SetInitialSize(size = panel.GetSize())
+            canvas.SetEnableZoom(True)
+            canvas.SetEnableGrid(True)
+            canvas.SetGridColour('grey')
+            self.canvasSingleSpectra.append(canvas)
+
         #
         # Connect events to event handlers
         #   (detector clickPixel events connected in above loops that create detector)
@@ -420,7 +419,7 @@ class MainFrame ( wx.Frame ):
         # set colours of Det1/2 pixels according to inputArray values
         ##  colourTable = colourmap.gist_heat                # use 'jet' colour table from matplotlib.pylab
         ##colourTable = colourmap.datad.get
-        colourTable = cm.gist_heat
+        colourTable = cm.gist_heat                          # @UndefinedVariable
         numCols = colourTable.N
     
         if scale == True :
@@ -478,9 +477,9 @@ class MainFrame ( wx.Frame ):
         self.e = data[0]            # energy axis in eV (conversion keV-->eV in "get_mda3.py")
         self.trans = data[1]
         self.t = self.trans[4][:]          # although looks redundant, but gives a separate attribute for faster access to "t"
-                           # March/2013:  at this stage, we are not using "self.t" anywhere; normalisation to
-                           #   sample time is entirely done in module "gmda" ("get_mda[...].py");
-                           # careful also with this explicit column assignment [4]; column numbers could change in "gmda"; check there!
+            # March/2013:  at this stage, we are not using "self.t" anywhere; normalisation to
+            #   sample time is entirely done in module "gmda" ("get_mda[...].py");
+            # careful also with this explicit column assignment [4]; column numbers could change in "gmda"; check there!
         self.i0 = self.trans[1][:]  # ! --> again, careful with explicit column assignment [1]
         self.det = data[2]
         
@@ -763,7 +762,7 @@ class MainFrame ( wx.Frame ):
                 #                   self.results[i].weights,
                 #                   self.results[i].averageMu, self.results[i].averageChi)
         except AttributeError :
-           print 'Save Error: Please tick processed spectra you want to save.'
+            print 'Save Error: Please tick processed spectra you want to save.'
         
         #gmda.writeAverages(self.mda_out_fname, self.goodPixels, self.correls,
         #           self.k, self.e, self.trans, self.det,
@@ -789,7 +788,7 @@ class MainFrame ( wx.Frame ):
         self.canvasMuAverage.Clear()
         self.canvasChiAverage.Clear()
         for i in range(len(self.panel_ids)) :
-            exec( "self.canvasSingleSpectra"+str(i)+".Clear()")
+            self.canvasSingleSpectra[i].Clear()
         
         # remove top file entry from File Listbox (note: top one was last one loaded; LIFO)
         #
@@ -1009,7 +1008,7 @@ class MainFrame ( wx.Frame ):
                 ylabel = 'mu(E)*d  /  a.u.'
             # send to second plot panel canvas used to display single detector channels
             ##destination = wx.FindWindowById(self.panel_ids[1])
-            destination = self.canvasSingleSpectra1
+            destination = self.canvasSingleSpectra[1]
             canvasID = self.plotSpectrum (x,y, xlabel, ylabel, destination)
             self.canvasID_selectedSingleSpec = canvasID
             
@@ -1073,7 +1072,7 @@ class MainFrame ( wx.Frame ):
             
             # send plot to canvas in corresponding panel
             ##destination = wx.FindWindowById(self.panel_ids[0])
-            destination = self.canvasSingleSpectra0
+            destination = self.canvasSingleSpectra[0]
             canvasID = self.plotSpectrum (x,y, xlabel, ylabel, destination)
             self.canvasID_enteredSingleSpec = canvasID
             
@@ -1154,7 +1153,7 @@ class MainFrame ( wx.Frame ):
                 wx.FindWindowById(self.canvasID_enteredSingleSpec).Clear()
                 y = self.det[self.index_lastPixelEntered].chi
                 ##destination = wx.FindWindowById(self.panel_ids[0])
-                destination = self.canvasSingleSpectra0
+                destination = self.canvasSingleSpectra[0]
                 temp = self.plotSpectrum (self.k, y, 'k  /  A^-1', 'chi(k)  /  a.u.', destination)
             #
             # again, only do an action if not "forever bad (='-2')"
@@ -1162,7 +1161,7 @@ class MainFrame ( wx.Frame ):
                 wx.FindWindowById(self.canvasID_selectedSingleSpec).Clear
                 y = self.det[self.index_lastPixelLeftClicked].chi
                 ##destination = wx.FindWindowById(self.panel_ids[1])
-                destination = self.canvasSingleSpectra1
+                destination = self.canvasSingleSpectra[1]
                 temp = self.plotSpectrum (self.k, y, 'k  /  A^-1', 'chi(k)  /  a.u.', destination)
             
             
@@ -1177,7 +1176,7 @@ class MainFrame ( wx.Frame ):
                 wx.FindWindowById(self.canvasID_enteredSingleSpec).Clear()
                 y = self.det[self.index_lastPixelEntered].roiCorr
                 ##destination = wx.FindWindowById(self.panel_ids[0])
-                destination = self.canvasSingleSpectra0
+                destination = self.canvasSingleSpectra[0]
                 temp = self.plotSpectrum (self.e, y, 'E  /  eV', 'mu(E)*d  /  a.u.', destination)
             #
             # again, only action if not "forever bad (='-2')"
@@ -1185,7 +1184,7 @@ class MainFrame ( wx.Frame ):
                 wx.FindWindowById(self.canvasID_selectedSingleSpec).Clear
                 y = np.reshape(self.det[self.index_lastPixelLeftClicked].roiCorr, self.scanSize)
                 ##destination = wx.FindWindowById(self.panel_ids[1])
-                destination = self.canvasSingleSpectra1
+                destination = self.canvasSingleSpectra[1]
                 temp = self.plotSpectrum (self.e, y, 'E  /  eV', 'mu(E)*d  /  a.u.', destination)
     
     
@@ -1215,7 +1214,7 @@ def Notepad() :
     t = trans[2][:]
     det = data[2]
     
-    colours = cm.jet
+    colours = cm.jet                            # @UndefinedVariable
     
     #roi_totals = np.zeros(100)
     #roi_totals[i] = np.sum(det[i].roi)/len(e)
