@@ -16,22 +16,16 @@ from utils import memoize
 # faster than netCDF4 and are pure-Python modules, so they are preferred here.
 # Note that the data endianness is treated differently by netCDF4.
 NETCDF_READER = None
+uint16 = '>u2'; uint32 = '>u4'
 try:
     from scipy.io import netcdf_file
-    uint16 = '>u2'; uint32 = '>u4'
     NETCDF_READER = 'scipy'
 except:
     try:
         from pupynere import netcdf_file
-        uint16 = '>u2'; uint32 = '>u4'
         NETCDF_READER = 'pupynere'
     except:
-        try:
-            from netCDF4 import Dataset as netcdf_file
-            uint16 = '<u2'; uint32 = '<u4'
-            NETCDF_READER = 'netCDF4'
-        except:
-            print 'no netCDF reader found'
+        print 'no netCDF reader found'
 #print NETCDF_READER
 
 
@@ -160,12 +154,13 @@ class DetectorData(object):
         first_file_n - e.g. 1 if first filename is ioc5[3-4]_1.nc
 
         """
+        self.shape = shape
         self.rows, self.cols = shape
         self.mca_bins = mca_bins
         self.pixelsteps_per_buffer = pixelsteps_per_buffer
         self.buffers_per_file = buffers_per_file
 
-        if isinstance(dirpaths, str):
+        if isinstance(dirpaths, basestring):
             dirpaths = [dirpaths]
         self.dirpaths = dirpaths
         self.filepattern = filepattern
@@ -279,6 +274,14 @@ class DetectorData(object):
         buffer_header = data.view(buffer_header_dtype)
         return buffer_header
 
+    def _uint32_swap_words(self, item_array):
+        """Deal with 32-bit uint32 items properly turning them into numpy np.uint32 values
+        """
+        if item_array.dtype == uint32:
+            i = item_array.view(dtype=np.dtype([('f0', '>u2'), ('f1', '>u2')]))
+            item_array = (i['f1'].astype(np.uint32)<<16) + i['f0'].astype(np.uint32)
+        return item_array
+
     def _get_mode1_pixel_data(self, f, buffer_ix, module_ix):
         """Return the pixel data corresponding to mapping mode 1 and indexed by
         buffer_ix, module_ix
@@ -333,7 +336,8 @@ class DetectorData(object):
         """
         dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
         assert metric in ['realtime', 'livetime', 'triggers', 'output_events']
-        return dynamic_data['ch{}_{}'.format(channel, metric)][0]
+        item_array = self._uint32_swap_words(dynamic_data['ch{}_{}'.format(channel, metric)])
+        return item_array[0]
 
     def _get_pixel_header_mode1_item(self, f, buffer_ix, module_ix, item):
         """Return the specified item from the pixel header indexed by the
@@ -351,7 +355,8 @@ class DetectorData(object):
 
         """
         dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
-        return dynamic_data[item][0]
+        item_array = self._uint32_swap_words(dynamic_data[item])
+        return item_array[0]
 
     def _get_buffer_header_item(self, f, buffer_ix, module_ix, item):
         """Return the specified item from the buffer header indexed by the
@@ -369,7 +374,8 @@ class DetectorData(object):
 
         """
         buffer_header = self._get_buffer_header(f, buffer_ix, module_ix)
-        return buffer_header[item][0]
+        item_array = self._uint32_swap_words(buffer_header[item])
+        return item_array[0]
 
     def spectrum(self, pixel_step, row, col):
         """Return the spectrum array indexed by pixel_step, row, col.
