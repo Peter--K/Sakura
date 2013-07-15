@@ -493,7 +493,7 @@ class MainFrame ( wx.Frame ):
         #  (this is used for the first detector panel as information for the user)
         self.ROIaverage = np.zeros(self.detSize)
         for i in range(self.detSize) :
-            self.ROIaverage[i] = np.mean(self.det[i].roi())
+            self.ROIaverage[i] = np.mean(self.det[i].roi)
 
         
         

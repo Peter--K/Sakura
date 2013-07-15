@@ -14,7 +14,7 @@ from scipy.stats.stats import pearsonr
 # set up a CLASS for detector pixels
 #   
 class pixel(object):
-    """Class to describe a detector pixel and its 'contents'
+    """Class to describe a detector element and its 'contents'
     There will be 100 instances later to represent the 100-element detector
     """
 
@@ -27,6 +27,11 @@ class pixel(object):
         self.pixNum = pixel.__pxId
         pixel.__pxId += 1
         self.row, self.col = divmod(self.pixNum, self.detector.rows)
+        self.roiCorr = None
+        self.roiCorrNorm = None
+        self.weightedSpec = None
+        self.weightFactor = None
+        self.tau = None
 
     # expose the DetectorData spectrum(), statistic(), buffer_header_item() and
     #    pixel_header_mode1_item() methods here
@@ -51,20 +56,44 @@ class pixel(object):
     @property
     def fpeaks(self):
         return np.array([self.statistic(step, self.row, self.col, 'realtime')
-                for step in range(self.detector.steps)])
+                        for step in range(self.detector.steps)])
 
     @property
     def speaks(self):
         return np.array([self.statistic(step, self.row, self.col, 'livetime')
-                for step in range(self.detector.steps)])
-
-    def roi(self, low=600, high=800):
-        return np.array([self._GetSpectrumROI(step, low, high)
                         for step in range(self.detector.steps)])
+
+    @property
+    def roi(self):
+        return np.array([self._GetSpectrumROI(step, self.detector.roi_low,
+                         self.detector.roi_high).sum()
+                        for step in range(self.detector.steps)])
+
+#     def NormT(self, tsample) :
+#         # normalise all raw data (FastPeaks, SlowPeaks, ROI) to sampling time tsample
+#         self.fpeaks = np.divide(np.ndarray.flatten(self.fpeaks), tsample)
+#         self.speaks = np.divide(np.ndarray.flatten(self.speaks), tsample)
+#         self.roi = np.divide(np.ndarray.flatten(self.roi), tsample)
+
+    def GetDead(self, fpeaks, speaks) :
+        # get detector dead time parameter "tau"
+        self.tau = fpeaks/speaks
+
+    def DeadCorr(self, tau, roi) :
+        # apply dead time parameter
+        self.roiCorr = roi*tau
+
+    def NormI0(self, I0):
+        # normalise data to incoming intensity (I0)
+        self.roiCorrNorm = self.roiCorr / I0
+
+    def WeightSpectrum(self):
+        # apply weight factor which was derived from relative edge step
+        self.weightedSpec = self.weightFactor * self.roiCorr
 
 
 class Detector(list):
-    """A detector class that acts like a list container for accessing pixels
+    """A detector class that acts like a list container for accessing pixel elements
     http://stackoverflow.com/questions/921334/how-to-use-classes-derived-from-pythons-list-class
     http://docs.python.org/2/reference/datamodel.html#emulating-container-types
     It needs to store a reference to a DetectorData instance and contain all the pixel
@@ -79,8 +108,13 @@ class Detector(list):
         self.det = [pixel(self) for _ in range(detector_size)]
         self.steps = None           # Holds no. of energy/mca/pixel-steps
         self.iter_pointer = 0
+        # The roi limits will apply to all contained detector elements - the pixel
+        # element objects keep a reference to this object so they can access these fields
+        self.roi_low = 0
+        self.roi_high = -1
 
-    # Implement __getitem__, __setitem__, __iter__ and __len__ methods
+    # Implement __getitem__, __setitem__, __iter__ and __len__ methods to implement
+    # list-like behaviour
     def __getitem__(self, key):
         return self.det[key]
 
@@ -103,12 +137,11 @@ class Detector(list):
             hex(id(self))
         )
 
-# def makeDet(detSize,scanSize):
-#     """Combine 100 pixels into one multi-element detector
-#     Returns: "det", which is a list of "detSize" (e.g., 100) "Pixel" objects
-#     """
-#     det = [pixel() for _ in range(detSize)]
-#     return det
+    # Methods for our container class additional to those required for list-like behaviour 
+    def set_roi_limits(self, low, high):
+        """Set the roi limits for the detector."""
+        self.roi_low = low
+        self.roi_high = high
 
 
 def getExtraPV(mda_dict, pv):
@@ -117,6 +150,7 @@ def getExtraPV(mda_dict, pv):
 
     mda_dict - the dict returned by Tim Mooney's readMDA
     pv - a string, e.g. 'CUR_TIME_STAMP'
+
     """
     extra_pvs = mda_dict[0]
     keys = {i.split(':')[-1]:i for i in extra_pvs}
@@ -147,6 +181,7 @@ def getData(fname):
         filepattern='ioc5[3-4]_([0-9]*)\.nc', mca_bins=2048, first_file_n=1)
 
     detector = Detector(detector_data)
+    detector.set_roi_limits(600, 800)
 
     # step through the netCDF files to verify we have all the fluoresence data available
     for i in range(scanSize):
@@ -165,9 +200,10 @@ def getData(fname):
     for series in scanData.d:
         try:
             tag = ':'.join(series.name.split(':')[1:])  # use the PV part after the IOC id
-            trans[pvColumnNames.index(tag)] = series.data
+            if tag in pvColumnNames:
+                trans[pvColumnNames.index(tag)] = series.data
         except:
-            pass
+            print 'missing PV ' + tag
 
     ts = trans[pvColumnNames.index('scaler1.T')]                # get the sample time
     e  = trans[pvColumnNames.index('EncEnergy:ActPos')]*1000.0  # Energy axis (in eV !!)
@@ -176,9 +212,9 @@ def getData(fname):
     # GR201307xx
     # TODO: get rid of this block when PVs are added to mda file properly
     # inject detection time
-    e = 6000.0 + np.arange(len(e))
+    #e = 6000.0 + np.arange(len(e))
     # inject i0
-    trans[pvColumnNames.index('scaler1:S2C')] = 4400.0
+    #trans[pvColumnNames.index('scaler1:S2C')] = 4400.0
     #-----------------------------------------------------------------------------------
 
     # normalise I0, I1, I2 to sample_time ts (use string "scaler1:" as identifier)

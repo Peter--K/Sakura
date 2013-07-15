@@ -406,6 +406,7 @@ def getE0 (e):
     #   E0 is within the first 300 eV of the scan;
     #   if scan shorter than 500 eV, then E0 is within half the scan range
     #
+
     eMin = min(e)
     scanRange = max(e)-eMin
     if scanRange < 500 :
