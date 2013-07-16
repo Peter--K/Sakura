@@ -5,10 +5,10 @@
 #      (currently built for the XAS Beamline at Synchrotron Light Source Australia)
 #
 # -----------------------------------------------------------------------------
-#                       {Peter Kappen; XAS Beamline; 2013}
+#                       {Peter Kappen, XAS Beamline;
+#                        Gary Ruben,
+#                                   Synchrotron Light Source Australia, 2013}
 #
-
-# Version 1e
 
 
 
@@ -22,6 +22,7 @@
 ###########################################################################
 
 import os
+import sys
 
 import wx
 import wx.lib.plot as plot
@@ -73,14 +74,13 @@ class MainFrame ( wx.Frame ):
         #
         ## self.edges = etab.edgesAvailable
         
-        
         #
         # build widget/GUI architecture using sizers
         #
         wx.Frame.__init__ ( self, parent, id = wx.ID_ANY,
                    title = u"-- SAKURA --", pos = wx.DefaultPosition,
                    size = wx.Size( 1250,780 ),
-                   ##size = wx.Size( 1300,1000 ),
+                   ##size = wx.Size( 2000,1200 ),
                    style = wx.HSCROLL|wx.VSCROLL|wx.TAB_TRAVERSAL|wx.DEFAULT_FRAME_STYLE)
         
         self.SetSizeHintsSz( wx.DefaultSize, wx.DefaultSize )
@@ -325,9 +325,10 @@ class MainFrame ( wx.Frame ):
         #       (enable this button after data has been loaded)
         #   (b) disable the edge selector list box
         #   (enable once data is loaded and an edge has been identified)
+        #   (c) disable file selector checkList box
         self.m_button_Unload.Disable()
         self.m_listBox_Edge.Disable()
-        
+        self.m_checkList_Spectra.Disable()
         
         self.m_statusBar = self.CreateStatusBar( 1, wx.ST_SIZEGRIP, wx.ID_ANY )
         
@@ -449,17 +450,28 @@ class MainFrame ( wx.Frame ):
     #   returns: ID of the canvas object drawn on (useful for
     #   clearing a canvas from outside this function; needs XXX = wx.FindWindowById(canvasID)
     #   at external point to find this canvas; then clear with   XXX.Clear() )
-    def plotSpectrum (self, x, y, xtitle, ytitle, outputWindow) :
+    def plotSpectrum (self, x, y, xtitle, ytitle, outputWindow, moreY=None) :
+        
+        # clear corresponding canvas
         #
-        # zip arrays together into list of tupels (wx.plot requires tupels)
-        plotData = zip(x,y)
-           
         canvas = outputWindow
         canvas.Clear()
-        # define type of plot (line plot)
-        #   and plot to canvas
+        #
+        # zip data arrays together into list of tupels (wx.plot requires tupels)
+        #   then define "line" objects to carry the data intot the plot
+        plotData = zip(x,y)
         line = plot.PolyLine(plotData, colour='red', width=1)
-        gc = plot.PlotGraphics([line], '', xtitle, ytitle)
+        if moreY != None :
+            plotMoreData = zip(x,moreY)
+            moreLine = plot.PolyLine(plotMoreData, colour='blue', width=2)
+        
+        # send "line" objects to convas
+        #   and draw everything
+        if moreY != None :
+            gc = plot.PlotGraphics([moreLine, line], '', xtitle, ytitle)
+        else :
+            gc = plot.PlotGraphics([line], '', xtitle, ytitle)
+           
         canvas.Draw(gc) #, xAxis=(0,15), yAxis=(0,15))
         
         return canvas.GetId()   # returns canvas Object ID (will be used to write
@@ -540,6 +552,7 @@ class MainFrame ( wx.Frame ):
         #
         # now insert all edges found up the top into the List Box (edges);
         #   for user to verify or choose from
+        # also remove all other edge choices
         # highlight top priority edge just found
         temp = np.asarray( [self.edges[0],np.repeat('-', len(self.edges[0])), self.edges[1]] ).T
         #       this generates a list of lists style of ['El','-','K']
@@ -547,9 +560,9 @@ class MainFrame ( wx.Frame ):
         for i in range(len(temp)) :
             print i, temp[i]
             addListItems.append( ''.join(temp[i]) )
-        addListItems.append('---')
         #       this loops through the list of lists, joins the
         #       sublists together, then writes them into "listItems"
+        self.m_listBox_Edge.Clear()
         self.m_listBox_Edge.InsertItems(addListItems,0)
         self.m_listBox_Edge.SetItemBackgroundColour(1,'blue')
         self.m_listBox_Edge.SetItemForegroundColour(1,'white')
@@ -636,25 +649,12 @@ class MainFrame ( wx.Frame ):
         #
         # END of Compute average
         #
-        
-        
-        # Send averaged mu(E) to plot window
-        canvasID = self.plotSpectrum (self.e, self.averageMu,
-                          'E  /  eV', 'mu(E)*d  /  a.u.',
-                          self.canvasMuAverage )
-                          ##self.m_panelMuAverage )
-        self.canvasID_panelMuAverage = canvasID
-        
-        # Send averaged chi(k)*k^2 to plot window
+ 
+        #
+        # lastly, we need to get the k-axis for chi(k) from det[0]
+        #   (remember, det[0] was used as a container only to transport k from "get_mda*" to here)
         self.k = self.det[0].k
-        canvasID = self.plotSpectrum (self.k, self.averageChi * np.square(self.k),
-                          'k  /  A^-1', 'k^2 * chi(k)  /  a.u.',
-                          self.canvasChiAverage)
-                          ##self.m_panelChiAverage)
-        self.canvasID_panelChiAverage = canvasID
-    
-
-    
+        
     
     
     ############################################
@@ -701,7 +701,7 @@ class MainFrame ( wx.Frame ):
                 self.bSizer_Controls.Show(self.sbSizer6)
             
             #
-            # process data and plot spectra
+            # process data (dead time correction; weighting; averaging; etc)
             #
             print 'processing file', self.fname
             self.processData(self.fname)
@@ -710,37 +710,61 @@ class MainFrame ( wx.Frame ):
             # keep track of which file has been loaded/processed by storing filenames in a list;
             # insert items at the beginning of the list (because in corresponding GUI CheckBoxList 
             #     newest item is listed up the top (i.e., FIFO)
-            self.whichProcessed.insert(0, self.fname)
+            self.whichProcessed.insert(0,self.fname)
             print self.whichProcessed
            
-            # in the __init__ function of this class, we generated a list of
+            # in the __init__ function of this Class MainFrame, we generated a list of
             #   'results' objects (empty there) 
-            # start to fill this list now one by one (use "self.whichProcessed" to count up)
+            # start to fill this list now one by one; to do so, add the latest results
+            #    at position 0 (i.e., LIFO)
             # (this list is structurally similar to the "det" list of "pixel" objects in
             #    library "GMDA")
-            self.results.insert( 0, Results() )
-            processIndex = len(self.whichProcessed)-1
-            print 'process Index: ', processIndex
-            self.results[processIndex].averageMu = self.averageMu
-            self.results[processIndex].averageMu = self.averageMu
-            self.results[processIndex].averageChi = self.averageChi
-            self.results[processIndex].TCRaverage = self.TCRaverage
-            self.results[processIndex].ROIaverage = self.ROIaverage
-            self.results[processIndex].weights = self.weights
-            self.results[processIndex].correls = self.correls
-            self.results[processIndex].trans = self.trans
-            self.results[processIndex].det = self.det
-            self.results[processIndex].k = self.k
-            self.results[processIndex].e = self.e
-                
+            self.results.insert( 0,Results() )
+            ##processIndex = len(self.whichProcessed)-1
+            ##print 'process Index: ', processIndex
+            self.results[0].fname = self.fname
+            self.results[0].goodPixels = self.goodPixels
+            self.results[0].averageMu = self.averageMu
+            self.results[0].averageMu = self.averageMu
+            self.results[0].averageChi = self.averageChi
+            self.results[0].TCRaverage = self.TCRaverage
+            self.results[0].ROIaverage = self.ROIaverage
+            self.results[0].weights = self.weights
+            self.results[0].correls = self.correls
+            self.results[0].trans = self.trans
+            self.results[0].det = self.det
+            self.results[0].k = self.k
+            self.results[0].e = self.e
+            
+            # we also have an attribute "self.specSelec" to consider; this attribute tracks
+            #   which spectrum is selected in the "self.m_checkList_Spectra" checkList box 
+            # by default, set this to zero (0) here; useful to always have the latest spectrum loaded
+            #   as the one that is active and displayed
+            self.specSelec = 0
+            
+            # now send processed data to plot window(s)
+            # 1. send averaged mu(E) to plot
+            canvasID = self.plotSpectrum (self.results[0].e, self.results[0].averageMu,
+                              'E  /  eV', 'mu(E)*d  /  a.u.',
+                              self.canvasMuAverage )
+            self.canvasID_panelMuAverage = canvasID
+            
+            # 2. send averaged chi(k)*k^2 to plot 
+            canvasID = self.plotSpectrum (self.results[0].k,
+                                          self.results[0].averageChi
+                                                * np.square(self.results[0].k),
+                              'k  /  A^-1', 'k^2 * chi(k)  /  a.u.',
+                              self.canvasChiAverage)
+            self.canvasID_panelChiAverage = canvasID
             
             
-            # lastly, enable the "Unload" button and the edge selector list box
+            
+            # lastly, enable the "Unload" button and the edge and file selector list boxes
             #   to enable user choices and interaction
-            if processIndex == 0 :
+            if len(self.whichProcessed)-1  == 0 :
                 self.m_button_Unload.Enable()
                 self.m_listBox_Edge.Enable()
-            
+                self.m_checkList_Spectra.Enable()
         
         #clean-up   
         dialog.Destroy()
@@ -753,14 +777,15 @@ class MainFrame ( wx.Frame ):
         print 'Saving data...'
         
         try :
-            print 'selected: ', self.spectraSelected
-            for i in self.spectraSelected :
-                print '  --> saving: ', self.whichProcessed[i]
-                #gmda.writeAverages(self.whichProcessed[i], self.goodPixels,
-                #                   self.results[i].correls, self.results[i].k,
-                #                   self.results[i].e, self.results[i].trans,
-                #                   self.results[i].weights,
-                #                   self.results[i].averageMu, self.results[i].averageChi)
+            print 'selected: ', self.spectraChecked
+            for i in self.spectraChecked :
+                print '  --> saving: ', self.results[i].fname
+                print self.results[i].goodPixels
+                gmda.writeAverages(self.results[i].fname, self.results[i].goodPixels,
+                                   self.results[i].correls, self.results[i].k,
+                                   self.results[i].e, self.results[i].trans,
+                                   self.results[i].weights,
+                                   self.results[i].averageMu, self.results[i].averageChi)
         except AttributeError :
             print 'Save Error: Please tick processed spectra you want to save.'
         
@@ -768,7 +793,6 @@ class MainFrame ( wx.Frame ):
         #           self.k, self.e, self.trans, self.det,
         #           self.averageMu, self.averageChi)
                    
-        
         
         
         
@@ -784,6 +808,7 @@ class MainFrame ( wx.Frame ):
         self.bSizer_Controls.Hide(self.sbSizer6)
         self.m_button_Unload.Disable()
         self.m_listBox_Edge.Disable()
+        self.m_checkList_Spectra.Disable()
         
         self.canvasMuAverage.Clear()
         self.canvasChiAverage.Clear()
@@ -792,7 +817,7 @@ class MainFrame ( wx.Frame ):
         
         # remove top file entry from File Listbox (note: top one was last one loaded; LIFO)
         #
-        self.m_checkList_Spectra.Delete(0)
+        self.m_checkList_Spectra.Clear()
         
         # clear from memory the data from last processed dataset 
         #
@@ -802,7 +827,11 @@ class MainFrame ( wx.Frame ):
         del self.weights, self.correls
         del self.trans, self.t, self.e, self.e0, self.i0, self.edges, self.scanSize 
     
-
+        # clear from memory all 'results' entries in 'results list'
+        del results
+        results = []
+        
+        
     
     def OnClick_Exit( self, event ):
         ## writeParameters()   ### **** ToDo: function that writes user params to disk to remember next session
@@ -813,16 +842,29 @@ class MainFrame ( wx.Frame ):
     # Spectrum and Edge choice box events (in controls area)
     #
     def OnCheckList_SpecSelect( self, event ):
-        print np.shape(self.det[0].roiCorr)
-        print np.shape(self.averageMu)
-        print np.shape(self.trans)
-        print np.shape(self.t)
-        print np.shape(self.e)
-        print np.shape([self.e, self])
-        #event.Skip()
+        self.specSelec =  self.m_checkList_Spectra.GetSelection()
+        print 'Spectrum selected: ', self.specSelec
+        print 'fname: ', self.results[self.specSelec].fname
+
+        # get previously processed data from memory and:
+        # 1. send averaged mu(E) to plot
+        canvasID = self.plotSpectrum (self.results[self.specSelec].e, self.results[self.specSelec].averageMu,
+                          'E  /  eV', 'mu(E)*d  /  a.u.',
+                          self.canvasMuAverage )
+        self.canvasID_panelMuAverage = canvasID
+        
+        # 2. send averaged chi(k)*k^2 to plot 
+        canvasID = self.plotSpectrum (self.results[self.specSelec].k,
+                                      self.results[self.specSelec].averageChi
+                                            * np.square(self.results[self.specSelec].k),
+                          'k  /  A^-1', 'k^2 * chi(k)  /  a.u.',
+                          self.canvasChiAverage)
+        self.canvasID_panelChiAverage = canvasID
+    
+    
     
     def OnCheckList_SpecToggle( self, event ):
-        self.spectraSelected = self.m_checkList_Spectra.GetChecked()
+        self.spectraChecked = self.m_checkList_Spectra.GetChecked()
         
     
     def OnWheel_SpecSelect( self, event ):
@@ -913,42 +955,45 @@ class MainFrame ( wx.Frame ):
             #       input or changes;
             #    this primarily for debugging purposes
             
-            
+        
         # if pixel was previously excluded (=index set to -1; marked grey), then re-include now
         #   otherwise exclude (by setting to -1)
-        if self.goodPixels[index] > -1 :
-            self.goodPixels[index] = -1     # exclude = set to '-1'; can be undone by user
+        if self.results[self.specSelec].goodPixels[index] > -1 :
+            self.results[self.specSelec].goodPixels[index] = -1     # exclude = set to '-1'; can be undone by user
             clickedPixel.SetBackgroundColour('grey') ## wx.Colour( 255, 0, 0 ) )
             linkedPixel.SetBackgroundColour('grey')
-        elif self.goodPixels[index] == -1 :
-            self.goodPixels[index] = index
+        elif self.results[self.specSelec].goodPixels[index] == -1 :
+            self.results[self.specSelec].goodPixels[index] = index
             clickedPixel.SetBackgroundColour('blue')
             linkedPixel.SetBackgroundColour('blue')
             # re-paint the pixels in the detector panels (because one was clicked on again and is still grey)
-            self.colourPixels(1, self.ROIaverage, self.goodPixels, scale=True)
+            self.colourPixels(1, self.results[self.specSelec].ROIaverage,
+                              self.results[self.specSelec].goodPixels, scale=True)
             ##### ToDo:  self.colourPixels(2, self.DEPENDSonRADIObutton, self.goodPixels, scale=RADIObutton***)
             
             
             
         # Since a pixel was included/excluded, the average mu & chi will have changed;
         # re-compute now ("getAverage()" returns a list of arrays, i.e. [averageMu, averageChi])
-        averages = gmda.getAverage(self.goodPixels, self.det)
-        self.averageMu = averages[0]
-        self.averageChi = averages[1]
+        averages = gmda.getAverage(self.results[self.specSelec].goodPixels, self.results[self.specSelec].det)
+        self.results[self.specSelec].averageMu = averages[0]
+        self.results[self.specSelec].averageChi = averages[1]
         
         # Send averaged mu(E) to corrsponding plot canvas
-        temp = self.plotSpectrum (self.e, self.averageMu,
+        temp = self.plotSpectrum (self.results[self.specSelec].e, self.results[self.specSelec].averageMu,
                       'E  /  eV', 'mu(E)*d  /  a.u.',
                       self.canvasMuAverage)
                       ##self.m_panelMuAverage )
         
         # Send averaged chi(k) to corresponding plot canvas
-        self.k = self.det[0].k
-        temp = self.plotSpectrum (self.k, self.averageChi * np.square(self.k),
+        ##self.k = self.det[0].k
+        temp = self.plotSpectrum (self.results[self.specSelec].k,
+                                  self.results[self.specSelec].averageChi
+                                        * np.square(self.results[self.specSelec].k),
                       'k  /  A^-1', 'chi(k)*k^2  /  a.u.',
                       self.canvasChiAverage)
                       ##self.m_panelChiAverage)
-    
+      
     
         
         #currentColour = clickedPixel.GetBackgroundColour()
@@ -980,13 +1025,20 @@ class MainFrame ( wx.Frame ):
         else :
             print 'Error in plot routine: pixel ID not in detector pixel ID lists.'
     
-        # further action only for pixels that are not forever excluded (i.e., =-2)
-        if self.goodPixels[index] >= -1 :
+        # further action only for pixels that are not forever excluded (forever excluded = -2)
+        if self.results[self.specSelec].goodPixels[index] >= -1 :
             #
             # get info of current font used to label the pixel of interest
             #   and set BOLD to show that this pixel spectrum is being plotted
             currentFont  = clickedPixel.GetFont()
-            currentFont.SetWeight(wx.BOLD)
+            
+            #if self.index_lastPixelLeftClicked != None :
+            #    pass
+             
+            if currentFont.GetWeightString() == 'wxNORMAL' :
+                currentFont.SetWeight(wx.BOLD)
+            else :
+                currentFont.SetWeight(wx.NORMAL)
             clickedPixel.SetFont(currentFont)
             linkedPixel.SetFont(currentFont)
             #
@@ -997,25 +1049,27 @@ class MainFrame ( wx.Frame ):
             #
             # define 'x' and 'y' for plotting depending on status of toggle button (mu/chi)
             if self.m_toggleBtn_MuChi.GetValue() == True :  #if toggled, then display chi(k)
-                x = self.k
-                y = self.det[index].chi
+                x = self.results[self.specSelec].k
+                y = self.results[self.specSelec].det[index].chi
                 xlabel = 'k  /  A^-1'
                 ylabel = 'chi(k)  /  a.u.'
             else :
-                x = self.e
-                y = np.reshape(self.det[index].roiCorr, self.scanSize)
+                x = self.results[self.specSelec].e
+                y = np.reshape(self.results[self.specSelec].det[index].roiCorr, self.scanSize)
+                ##y = zip(y,self.results[self.specSelec].averageMu)
                 xlabel = 'E  /  eV'
                 ylabel = 'mu(E)*d  /  a.u.'
             # send to second plot panel canvas used to display single detector channels
             ##destination = wx.FindWindowById(self.panel_ids[1])
             destination = self.canvasSingleSpectra[1]
-            canvasID = self.plotSpectrum (x,y, xlabel, ylabel, destination)
+            canvasID = self.plotSpectrum (x,y, xlabel, ylabel, destination,
+                                          self.results[self.specSelec].averageMu)
             self.canvasID_selectedSingleSpec = canvasID
             
             # lastly, write the index of the pixel left-clicked into an attribute
             #   (need to know when changing plot output between mu(E) and chi(k))
             self.index_lastPixelLeftClicked = index
-
+  
     
     
     # mouse entering pixel --> display pixel values in status bar
@@ -1041,14 +1095,14 @@ class MainFrame ( wx.Frame ):
             print 'Error in enter_window routine: pixel ID not in detector pixel ID lists.'
         
         # read values of interest and write into status bar
-        self.m_statusBar.SetStatusText('ROI average: '  + str(int(self.ROIaverage[index])) + 'cts/sec  --  '
-                           +'Correlation: ' + str('%.2f'% (self.correls[index]*100)) + '%  --  '
-                           +'TCR average: ' + str(int(self.TCRaverage[index])) + 'cts/sec  --  '
-                           +'Weight: '+ str('%.2f'% (self.det[index].weightFactor))
+        self.m_statusBar.SetStatusText('ROI average: '  + str(int(self.results[self.specSelec].ROIaverage[index])) + 'cts/sec  --  '
+                           +'Correlation: ' + str('%.2f'% (self.results[self.specSelec].correls[index]*100)) + '%  --  '
+                           +'TCR average: ' + str(int(self.results[self.specSelec].TCRaverage[index])) + 'cts/sec  --  '
+                           +'Weight: '+ str('%.2f'% (self.results[self.specSelec].det[index].weightFactor))
                            ,0)
         
         # further action only for pixels that are not forever excluded (i.e., =-2)
-        if self.goodPixels[index] >= -1 :
+        if self.results[self.specSelec].goodPixels[index] >= -1 :
             #
             # highlight font of pixel entered as "yellow"; then refresh (redraw) pixel
             pixelEntered.SetForegroundColour('yellow')
@@ -1060,8 +1114,8 @@ class MainFrame ( wx.Frame ):
             #   define 'x' and 'y' for plotting, depending on whether mu(E) or chi(k)
             #   is to be plotted
             if self.m_toggleBtn_MuChi.GetValue() == True :  #if toggled, then display chi(k)
-                x = self.k
-                y = self.det[index].chi
+                x = self.results[self.specSelec].k
+                y = self.results[self.specSelec].det[index].chi
                 xlabel = 'k  /  A^-1'
                 ylabel = 'chi(k)  /  a.u.'
             else :
@@ -1102,7 +1156,7 @@ class MainFrame ( wx.Frame ):
             print 'Error in leave_window routine: pixel ID not in detector pixel ID lists.'
     
     
-        if self.goodPixels[index] >= -1 :
+        if self.results[self.specSelec].goodPixels[index] >= -1 :
             #
             # get info of current font used to label the pixel of interest
             currentFont  = pixelLeft.GetFont()
@@ -1120,17 +1174,21 @@ class MainFrame ( wx.Frame ):
     # radio button events (in controls panels)
     #
     def OnRadioBtn_TCR( self, event ):
-        self.colourPixels(2, self.TCRaverage, self.goodPixels, scale=True)
+        self.colourPixels(2, self.results[self.specSelec].TCRaverage,
+                          self.results[self.specSelec].goodPixels, scale=True)
         # display average TCR scaled to range of colour scale (256 colours)
     
     def OnRadioBtn_Correl( self, event ):
-        self.colourPixels(2, self.correls, self.goodPixels, scale=False)
+        self.colourPixels(2, self.results[self.specSelec].correls,
+                          self.results[self.specSelec].goodPixels, scale=False)
         # display correlation coefficients [0...1]; not scaled to help identify bad outliers
 
     def OnRadioBtn_Weights( self, event ):
-        self.colourPixels(2, self.weights, self.goodPixels, scale=False)
+        self.colourPixels(2, self.results[self.specSelec].weights,
+                          self.results[self.specSelec].goodPixels, scale=False)
         # display weight factors ([0...1]); not scaled to help identify bad spectra
     
+     
     
     #
     # Mu(E) / Chi(k) toggle button events (in display area)
@@ -1149,21 +1207,22 @@ class MainFrame ( wx.Frame ):
             #
             # only take action if pixel is not "forever bad (=-2)";
             #   thus even unselected spectra may be displayed
-            if self.goodPixels[self.index_lastPixelEntered] >= -1 : 
+            if self.results[self.specSelec].goodPixels[self.index_lastPixelEntered] >= -1 : 
                 wx.FindWindowById(self.canvasID_enteredSingleSpec).Clear()
-                y = self.det[self.index_lastPixelEntered].chi
+                y = self.results[self.specSelec].det[self.index_lastPixelEntered].chi
                 ##destination = wx.FindWindowById(self.panel_ids[0])
                 destination = self.canvasSingleSpectra[0]
-                temp = self.plotSpectrum (self.k, y, 'k  /  A^-1', 'chi(k)  /  a.u.', destination)
+                temp = self.plotSpectrum (self.results[self.specSelec].k, y,
+                                          'k  /  A^-1', 'chi(k)  /  a.u.', destination)
             #
             # again, only do an action if not "forever bad (='-2')"
-            if self.goodPixels[self.index_lastPixelLeftClicked] >= -1:
+            if self.results[self.specSelec].goodPixels[self.index_lastPixelLeftClicked] >= -1:
                 wx.FindWindowById(self.canvasID_selectedSingleSpec).Clear
-                y = self.det[self.index_lastPixelLeftClicked].chi
-                ##destination = wx.FindWindowById(self.panel_ids[1])
+                y = self.results[self.specSelec].det[self.index_lastPixelLeftClicked].chi               ##destination = wx.FindWindowById(self.panel_ids[1])
                 destination = self.canvasSingleSpectra[1]
-                temp = self.plotSpectrum (self.k, y, 'k  /  A^-1', 'chi(k)  /  a.u.', destination)
-            
+                temp = self.plotSpectrum (self.results[self.specSelec].k, y,
+                                          'k  /  A^-1', 'chi(k)  /  a.u.', destination)
+              
             
         elif self.m_toggleBtn_MuChi.GetValue() == False :
             # switch label to read "chi(k)"...
@@ -1172,21 +1231,25 @@ class MainFrame ( wx.Frame ):
             #
             # only take action if pixel is not "forever bad (=-2)";
             #   thus even unselected spectra may be displayed
-            if self.goodPixels[self.index_lastPixelEntered] >= -1 : 
+            if self.results[self.specSelec].goodPixels[self.index_lastPixelEntered] >= -1 : 
                 wx.FindWindowById(self.canvasID_enteredSingleSpec).Clear()
-                y = self.det[self.index_lastPixelEntered].roiCorr
+                y = self.results[self.specSelec].det[self.index_lastPixelEntered].roiCorr
                 ##destination = wx.FindWindowById(self.panel_ids[0])
                 destination = self.canvasSingleSpectra[0]
-                temp = self.plotSpectrum (self.e, y, 'E  /  eV', 'mu(E)*d  /  a.u.', destination)
+                temp = self.plotSpectrum (self.results[self.specSelec].e, y,
+                                          'E  /  eV', 'mu(E)*d  /  a.u.', destination)
             #
             # again, only action if not "forever bad (='-2')"
             if self.goodPixels[self.index_lastPixelLeftClicked] >= -1:
                 wx.FindWindowById(self.canvasID_selectedSingleSpec).Clear
-                y = np.reshape(self.det[self.index_lastPixelLeftClicked].roiCorr, self.scanSize)
+                y = np.reshape(self.results[self.specSelec].det[self.index_lastPixelLeftClicked].roiCorr,
+                               self.scanSize)
                 ##destination = wx.FindWindowById(self.panel_ids[1])
                 destination = self.canvasSingleSpectra[1]
-                temp = self.plotSpectrum (self.e, y, 'E  /  eV', 'mu(E)*d  /  a.u.', destination)
+                temp = self.plotSpectrum (self.results[self.specSelec].e, y,
+                                          'E  /  eV', 'mu(E)*d  /  a.u.', destination)
     
+   
     
 
         
