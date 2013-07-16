@@ -470,7 +470,6 @@ class MainFrame ( wx.Frame ):
         # read in ASCII file and extract energy axis (e=data[0])
         #   transmission data (trans=data[1]), and
         #   "detector" (list of pixel objects; see "get_mda.py" for details) (det=data[2])
-#         data = gmda.getData(whichFileToProcess)
         e, trans, det = gnc.getData(whichFileToProcess)
         
         # add these variables as attributes to the MainFrame Class (here as "self")
@@ -500,7 +499,8 @@ class MainFrame ( wx.Frame ):
         # Good Detector Pixels:
         # ---------------------
         #
-#         assessPixels = gmda.getGoodPixels(self.det, self.detSize)
+        # GR mda->netCDF
+        # assessPixels = gmda.getGoodPixels(self.det, self.detSize)
         assessPixels = gnc.getGoodPixels(self.det, self.detSize)
         self.goodPixels = assessPixels[0]
         excludeForeverPixels = assessPixels[1]   # no need to make that an attribute; only used here locally
@@ -558,7 +558,8 @@ class MainFrame ( wx.Frame ):
         self.m_listBox_Edge.Refresh()
         #
         # garbage collection
-        temp = None
+        del temp
+        # temp = None
     
         
         
@@ -566,7 +567,8 @@ class MainFrame ( wx.Frame ):
         # ---------------------
         # now that we know a basic set of GoodPixels, apply dead time correction to
         #   obtain "roiCorr"
-#         gmda.detDeadCorr( self.det, self.goodPixels )
+        # GR mda->netCDF
+        gmda.detDeadCorr( self.det, self.goodPixels )
         #
         # END of DeadTimeCorrection
         
@@ -577,9 +579,8 @@ class MainFrame ( wx.Frame ):
         # as starting point, set colours of Det2 pixels according to
         #   correlation coefficients
         #   (users can choose via radio buttons what to display in Det2 pixels)
-#         self.correls = gmda.getCorrels(self.det, self.goodPixels)
-        self.correls = gnc.getCorrels(self.det, self.goodPixels)
-#         self.colourPixels(2, self.correls, self.goodPixels, scale=False)
+        self.correls = gmda.getCorrels(self.det, self.goodPixels)
+        self.colourPixels(2, self.correls, self.goodPixels, scale=False)
         #
         # END of Correclation
         
@@ -607,7 +608,7 @@ class MainFrame ( wx.Frame ):
         #   while those fits are still in memory, we extract something like "chi(k)";
         #   if there is structure in the data from I0, then it is better to 
         #   do the normalisation to I0 *before* the fitting 
-#         gmda.normaliseI0(self.det, self.goodPixels, self.i0)
+        gmda.normaliseI0(self.det, self.goodPixels, self.i0)
         #
         # END of normalise to I0
         #
@@ -620,8 +621,8 @@ class MainFrame ( wx.Frame ):
         #   and pre-edge background)
         # this is useful to minimise the noise input of bad spectra into the
         #   final average
-#         self.weights = gmda.getWeightFactors(self.det, self.e, self.e0, self.goodPixels)
-#         gmda.applyWeights(self.det, self.goodPixels)
+        self.weights = gmda.getWeightFactors(self.det, self.e, self.e0, self.goodPixels)
+        gmda.applyWeights(self.det, self.goodPixels)
         #
         # END of weight factors
         #
@@ -632,8 +633,7 @@ class MainFrame ( wx.Frame ):
         # ----------------
         # average all selected ("good") spectra using above weight factors
         #
-#         averages = gmda.getAverage(self.goodPixels, self.det)
-        averages = gnc.getAverage(self.goodPixels, self.det)
+        averages = gmda.getAverage(self.goodPixels, self.det)
         self.averageMu = averages[0]
         self.averageChi = averages[1]
         print 'E0 = ', self.e0, 'eV'

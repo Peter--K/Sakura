@@ -9,6 +9,7 @@ from scipy import polyfit
 from scipy import polyval
 from scipy.stats.stats import pearsonr
 
+from utils import memoize
 
 #
 # set up a CLASS for detector pixels
@@ -31,6 +32,7 @@ class pixel(object):
         self.roiCorrNorm = None
         self.weightedSpec = None
         self.weightFactor = None
+        self.chi = None
         self.tau = None
 
     # expose the DetectorData spectrum(), statistic(), buffer_header_item() and
@@ -54,16 +56,19 @@ class pixel(object):
         return spectrum[low:high]
 
     @property
+    @memoize
     def fpeaks(self):
         return np.array([self.statistic(step, self.row, self.col, 'realtime')
                         for step in range(self.detector.steps)])
 
     @property
+    @memoize
     def speaks(self):
         return np.array([self.statistic(step, self.row, self.col, 'livetime')
                         for step in range(self.detector.steps)])
 
     @property
+    @memoize
     def roi(self):
         return np.array([self._GetSpectrumROI(step, self.detector.roi_low,
                          self.detector.roi_high).sum()
@@ -77,7 +82,10 @@ class pixel(object):
 
     def GetDead(self, fpeaks, speaks) :
         # get detector dead time parameter "tau"
-        self.tau = fpeaks/speaks
+        try:
+            self.tau = fpeaks/speaks
+        except ZeroDivisionError:
+            self.tau = fpeaks
 
     def DeadCorr(self, tau, roi) :
         # apply dead time parameter
@@ -279,28 +287,87 @@ def getWeightFactors( det, e, e0, goodPixels ) :
 
 
 def getGoodPixels (det, detSize):
+    """FUNCTION to check data from individual detector pixels for quality and
+              remove any bad pixels from the list of pixels considered
+       returns: "goodPixels", a 1-D array of "detSize" marking bad pixels with value "-2"
+    """
+    # define goodPixels array
     goodPixels = np.arange(detSize)
-    excludeForeverPixels = []
+    
+    #     to start with, assume that all pixels (spectra) are good
+    #  (list is complete; over time, elements of bad pixels will be set to -2 or -1;
+    #    * where goodPixels is used, the list will be compressed
+    #      to remove the '-2' indices and thus permit easy
+    #       looping via 'for i in goodPixels : [...]';
+    #    * later in the code, we use '-1' to exclude spectra
+    #      following user interaction; the '-2's cannot be undone
+    #      while the '-1's can
+    #    * ultimately, goodPixels will contian indices >0
+    #     of spectra to be processed further and included in the
+    #     weighted, corrected average of pixels)
+
+
+
+    # ------------------------------------------------------------------------    
+    # test for bad pixels -- Step 1:
+    #    all pixels that are defunct (average <= 10 cts/sec) are excluded
+    # ------------------------------------------------------------------------
+    tempROIaverage = np.zeros(detSize)
+    for i in range(detSize) :
+        tempROIaverage[i] = np.mean( det[i].roi)
+
+    # search through ROIaverage and set to '-2' all indices of elements
+    #    below certain threshold  (here, ROIaverage <10 cts/sec)
+    excludeForeverPixels = np.where(tempROIaverage<10)[0]
+    goodPixels[ excludeForeverPixels ] = -2
+
+
+    # ------------------------------------------------------------------------    
+    # test for bad pixels -- Step 2:
+    #    high TCR pixels 
+    # ------------------------------------------------------------------------
+    #
+    # above approach works well for defunct (low count rate) detector
+    #    pixels, but it does not work for pixels that are just clocking up
+    #    randomly high count rates 
+    # thus, out of now remaining GoodPixels,
+    #    if TCR average of pixel > 3-times average TCR-average, then exclude
+    #   the factor "3" is stored in "cutOffFactor = 3"; *** modify this if required ***
+    #
+    cutOffFactor = 3
+    remainPixels = np.compress(goodPixels >= 0, goodPixels)
+    tempTCRaverage = []
+    for i in remainPixels :
+        tempTCRaverage = np.append(tempTCRaverage, np.mean(det[i].fpeaks))
+    badTCRpixels = np.where(tempTCRaverage > cutOffFactor * np.mean(tempTCRaverage))
+    goodPixels[remainPixels[badTCRpixels]] = -2
+    excludeForeverPixels = np.append(excludeForeverPixels, badTCRpixels)
+    print 'exclude forever (mark red): ', excludeForeverPixels
+    
+    
+
+    # ------------------------------------------------------------------------    
+    # test for bad pixels -- Step 3:
+    #    SlowPeaks have zero values
+    # ------------------------------------------------------------------------    
+    # problematic are also pixels that show Zeros in some of the SlowPeaks
+    #   ("det.speaks") as they cause infinity values ("nan") when computing #
+    #   detector dead time correction by using the ratio "FastPeaks/SlowPeaks";
+    # thus, out of now remaining GoodPixels,
+    #    if SlowPeaks = 0 anywhere, set value to +1
+    #    (a spectrum could still be OK, even though there might be a zero
+    #     count in the background before the edge in low-TCR scenarios)
+    #
+    #
+    # TODO: GR20130716
+    # I've commented out the following line because I don't want to overwrite the speaks
+    # property - I prefer to just catch any divide-by-zero exceptions as they occur
+    #
+    # for i in goodPixels :
+    #     det[i].speaks[ np.where(det[i].speaks == 0) ]  = 1
+    #
+
     return goodPixels, excludeForeverPixels
-
-
-#
-# FUNCTION to compute spectra correlation coefficients (using Pearsons Correlation)
-#   returns: array "correls" of size "detSize", containing average correlation
-#            coefficient of pixel i with all other good pixels {0...i-1, i+1... n} 
-#
-def getCorrels(det, goodPixels) :
-    # goodPixels is designed to include index values <0 to mark bad pixels;
-    #    thus, needs compressing out all indices <0 first before using in a loop
-    goodPixels = np.compress(goodPixels >= 0, goodPixels)
-    #
-    correls = np.zeros(len(det))
-    for i in goodPixels :
-        for j in goodPixels :
-            correls[i] = correls[i] + pearsonr(det[i].roi, det[j].roi)[0]
-    correls = correls / len(det)
-    #
-    return correls
 
 
 if __name__ == '__main__' :
