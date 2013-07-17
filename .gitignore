@@ -9,3 +9,5 @@ build
 dist
 junk
 MapData
+.project
+.pydevproject
