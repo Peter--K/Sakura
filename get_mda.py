@@ -483,16 +483,15 @@ def writeDataBlock (f, output, numFormat) :
 #   returns: nothing, but writes a file to disk
 #
 def writeAverages(mdaOutName, goodPixels, correls,
-                  k, e, trans, det, averageMu, averageChi) :
+                  k, e, trans, weights, averageMu, averageChi) :
     #
-    f = open(fname.split('.mda')[0] + '.asc', 'w')
+    f = open(mdaOutName.split('.mda')[0] + '.asc', 'w')
     #
     f.write('# \n')
     f.write('#  SAKURA output \n')
     f.write('# \n')
     f.write('# \n')
-    f.write('# MDA file converted: ' + fname + '\n')
-    f.write('# ASCII file generated and processed: ' + mdaOutName + '\n')
+    f.write('# MDA file processed: ' + mdaOutName + '\n')
     f.write('# \n')
     #
     # write matrix of "goodPixels" to file; replace "-1" and "-2" with "--"
@@ -533,11 +532,11 @@ def writeAverages(mdaOutName, goodPixels, correls,
     f.write('# Weight Factors: \n')
     f.write('# --------------- \n')
     f.write('# \n')
-    for i in range(10) :
+    output = np.reshape(weights, (10,10))
+    for i in range(len(output)) :
         f.write('# ')
-        for j in range(10) :
-            index = 10*i + j
-            f.write( ('{:.2f}  ').format( det[index].weightFactor ) )
+        for j in range(len(output[i])) :
+            f.write( ('{:.2%}  ').format( output[i][j]) )
         f.write('\n')
     f.write('# \n')
     
