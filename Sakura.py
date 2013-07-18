@@ -33,17 +33,10 @@ import numpy as np
 ##import _cm as colourmap
 from matplotlib import cm
 
-##import matplotlib
-##import scipy
-
-from scipy import polyfit
-from scipy import polyval
-from scipy.stats.stats import pearsonr
-
 import get_mda as gmda
 import edge_tables as etab
 import get_netcdf as gnc
-
+import readMDA
 
 #---------------------------------------------------------------------
 # An empty container ("Results") to hold averaged data; used to store
@@ -406,8 +399,14 @@ class MainFrame ( wx.Frame ):
         # array to hold filenames of files already processed
         #   (see end of event function "OnClick_Load" for first use and details)
         self.whichProcessed = []
-    
-        
+
+        # Holds a reference to the get_mda or get_netcdf module depending on the type of
+        # mda opened by the Open File dialog. Ensure that this is set from None to
+        # gmda or gnc and back to None but NOT from gmda to gnc or gnc to gmda. This will
+        # ensure that users don't try to process mapping mode and step mode data at the
+        # same time.
+        self.reader = None
+
     def __del__( self ):
         pass
     
@@ -476,13 +475,31 @@ class MainFrame ( wx.Frame ):
         
         return canvas.GetId()   # returns canvas Object ID (will be used to write
         #             into self.ATTRIBUTES after external call; see there)
+
+
+    def _mdaIsSelfContained(self, fname):
+        """A method that checks whether we have an mda file containing fpeaks+speaks+roi
+        values or whether we have that along with all MCA data in netCDF files. Just
+        checks the 'rank' entry in the mda file to make a decision.
+
+        Arguments:
+        fname - mda filename
     
-    
+        Returns:
+        True if the 'rank' entry in the mda file = 2
+        False otherwise
+
+        """
+        # get the path to the netCDF files from the mda file
+        mda = readMDA.readMDA(fname, verbose=False)
+        return (mda[0]['rank'] == 2)
+
+
     def processData(self, whichFileToProcess):
         # read in ASCII file and extract energy axis (e=data[0])
         #   transmission data (trans=data[1]), and
         #   "detector" (list of pixel objects; see "get_mda.py" for details) (det=data[2])
-        e, trans, det = gnc.getData(whichFileToProcess)
+        e, trans, det = self.reader.getData(whichFileToProcess)
         
         # add these variables as attributes to the MainFrame Class (here as "self")
         #
@@ -511,9 +528,7 @@ class MainFrame ( wx.Frame ):
         # Good Detector Pixels:
         # ---------------------
         #
-        # GR mda->netCDF
-        # assessPixels = gmda.getGoodPixels(self.det, self.detSize)
-        assessPixels = gnc.getGoodPixels(self.det, self.detSize)
+        assessPixels = self.reader.getGoodPixels(self.det, self.detSize)
         self.goodPixels = assessPixels[0]
         excludeForeverPixels = assessPixels[1]   # no need to make that an attribute; only used here locally
         #
@@ -580,7 +595,6 @@ class MainFrame ( wx.Frame ):
         # ---------------------
         # now that we know a basic set of GoodPixels, apply dead time correction to
         #   obtain "roiCorr"
-        # GR mda->netCDF
         gmda.detDeadCorr( self.det, self.goodPixels )
         #
         # END of DeadTimeCorrection
@@ -682,12 +696,7 @@ class MainFrame ( wx.Frame ):
         if dialog.ShowModal() == wx.ID_OK:
             #
             self.fname = dialog.GetFilename()
-            #
-            # separate filename from extension and test whether file has
-            #   already been converted using "mda2ascii"
-            filename = self.fname.split('.mda')[0]
-            fileExtension = '.mda'
-            
+
             # in spectra ListBox, remove initial default label reading "file"
             #   if present; then add new filename to ListBox
             # also: remove preceding "SR12ID01H" from label and display file No. only
@@ -703,7 +712,14 @@ class MainFrame ( wx.Frame ):
             #   if so, unhide
             if not self.bSizer_Controls.IsShown(self.sbSizer6) :
                 self.bSizer_Controls.Show(self.sbSizer6)
-            
+
+            # Set step or netCDF mode based on the 'rank' entry in the mda file
+            if self.reader is None:
+                if self._mdaIsSelfContained(self.fname):
+                    self.reader = gmda
+                else:
+                    self.reader = gnc
+
             #
             # process data (dead time correction; weighting; averaging; etc)
             #
@@ -832,9 +848,10 @@ class MainFrame ( wx.Frame ):
         del self.trans, self.t, self.e, self.e0, self.i0, self.edges, self.scanSize 
     
         # clear from memory all 'results' entries in 'results list'
-        del results
-        results = []
-        
+        self.results = []
+
+        # Reset step or netCDF reader mode, allowing it to be changed on the next load
+        self.reader = None
         
     
     def OnClick_Exit( self, event ):

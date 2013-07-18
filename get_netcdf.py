@@ -5,10 +5,6 @@ import numpy as np
 from xmap_netcdf_reader import DetectorData
 import readMDA
 
-from scipy import polyfit
-from scipy import polyval
-from scipy.stats.stats import pearsonr
-
 from utils import memoize
 
 #
@@ -16,9 +12,9 @@ from utils import memoize
 #   
 class pixel(object):
     """Class to describe a detector element and its 'contents'
-    There will be 100 instances later to represent the 100-element detector
-    """
+    There will be 100 instances later to represent the 100-element detector.
 
+    """
     __pxId = 0    # class variable for generating a unique pixel id on construction 
 
     def __init__(self, detector) :
@@ -106,6 +102,7 @@ class Detector(list):
     http://docs.python.org/2/reference/datamodel.html#emulating-container-types
     It needs to store a reference to a DetectorData instance and contain all the pixel
     objects.
+
     """
     def __init__(self, detector_data):
         """detector is a DetectorData instance
@@ -156,8 +153,12 @@ def getExtraPV(mda_dict, pv):
     """Return the PV value using the PV part of an IOC:PV id for matching
     e.g. getExtraPV(mda_dict, 'CUR_TIME_STAMP') will match SR12ID01MC01:CUR_TIME_STAMP
 
+    Arguments:
     mda_dict - the dict returned by Tim Mooney's readMDA
     pv - a string, e.g. 'CUR_TIME_STAMP'
+
+    Returns:
+    The matching PV keyname in the mda_dict
 
     """
     extra_pvs = mda_dict[0]
