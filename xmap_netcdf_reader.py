@@ -218,6 +218,7 @@ class DetectorData(object):
         paths = [p[1] for p in sortedpaths]
         return paths
 
+    @memoize
     def _get_data_location(self, pixel_step, row, col):
         """Locate the data buffer corresponding to the
         pixel_step, row and col.
@@ -228,7 +229,7 @@ class DetectorData(object):
 
         Returns:
         A 4-tuple (f, buffer_ix, module_ix, channel):
-        f - netCDF file handle
+        path - netCDF file path
         buffer_ix - 0-based int referring to buffer contained in netCDF file.
         module_ix - 0 -> max_module-1 for the current file.
         channel - 0-3
@@ -248,13 +249,13 @@ class DetectorData(object):
                     number_of_detector_elements/CHANNELS_PER_MODULE) / number_of_files))
         file_ix, module_ix = divmod(module_ix, file_split_value)
 
-        # Get a netCDF file handle
-        f = netcdf_file(filepaths[file_ix], 'r')
+        # Get a netCDF file path
+        path = filepaths[file_ix]
 
         # Get buffer index from module_ix and pixel_step
         buffer_ix = pixel_step % self.pixelsteps_per_buffer
 
-        return f, buffer_ix, module_ix, channel
+        return path, buffer_ix, module_ix, channel
 
     def _get_buffer_header(self, f, buffer_ix, module_ix):
         """Return the buffer header of the buffer indexed by buffer_ix, module_ix
@@ -301,12 +302,12 @@ class DetectorData(object):
         dynamic_data = data.view(pixel_header_mode1_static_fixedbins_dtype(self.mca_bins))
         return dynamic_data
 
-    def _get_fixedbins_spectrum(self, f, buffer_ix, module_ix, channel):
+    def _get_fixedbins_spectrum(self, path, buffer_ix, module_ix, channel):
         """Return the spectrum array indexed by the buffer_ix, module_ix, and channel
         indices. This assumes that MCAs are all equal in length = self.mca_bins.
 
         Keyword arguments:
-        f - netCDF file handle
+        path - netCDF file path
         buffer_ix - 0-based int referring to buffer contained in netCDF file.
         module_ix - 0 -> max_module-1 for the current file.
         channel - 0-3
@@ -315,16 +316,19 @@ class DetectorData(object):
         An ndarray with self.mca_bins uint16-words
 
         """
+        f = netcdf_file(path, 'r')
         dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
+        f.close()
+
         return dynamic_data['ch{}_spectrum'.format(channel)][0]
 
-    def _get_statistic(self, f, buffer_ix, module_ix, channel, metric):
+    def _get_statistic(self, path, buffer_ix, module_ix, channel, metric):
         """Return the channel statistic specified by metric from the pixel data
         indexed by the buffer_ix, module_ix, and channel indices.
         This assumes that MCAs are all equal in length = self.mca_bins.
 
         Keyword arguments:
-        f - netCDF file handle
+        path - netCDF file path
         buffer_ix - 0-based int referring to buffer contained in netCDF file.
         module_ix - 0 -> max_module-1 for the current file.
         channel - 0-3
@@ -334,18 +338,21 @@ class DetectorData(object):
         uint32 containing the metric
 
         """
+        f = netcdf_file(path, 'r')
         dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
+        f.close()
+
         assert metric in ['realtime', 'livetime', 'triggers', 'output_events']
         item_array = self._uint32_swap_words(dynamic_data['ch{}_{}'.format(channel, metric)])
         return item_array[0]
 
-    def _get_pixel_header_mode1_item(self, f, buffer_ix, module_ix, item):
+    def _get_pixel_header_mode1_item(self, path, buffer_ix, module_ix, item):
         """Return the specified item from the pixel header indexed by the
         buffer_ix and module_ix indices.
         This assumes that MCAs are all equal in length = self.mca_bins.
 
         Keyword arguments:
-        f - netCDF file handle
+        path - netCDF file path
         buffer_ix - 0-based int referring to buffer contained in netCDF file.
         module_ix - 0 -> max_module-1 for the current file.
         item - e.g. 'total_pixel_block_size'
@@ -354,17 +361,20 @@ class DetectorData(object):
         uint16 or uint32 (item dependent)
 
         """
+        f = netcdf_file(path, 'r')
         dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
+        f.close()
+
         item_array = self._uint32_swap_words(dynamic_data[item])
         return item_array[0]
 
-    def _get_buffer_header_item(self, f, buffer_ix, module_ix, item):
+    def _get_buffer_header_item(self, path, buffer_ix, module_ix, item):
         """Return the specified item from the buffer header indexed by the
         buffer_ix and module_ix indices.
         This assumes that MCAs are all equal in length = self.mca_bins.
 
         Keyword arguments:
-        f - netCDF file handle
+        path - netCDF file path
         buffer_ix - 0-based int referring to buffer contained in netCDF file.
         module_ix - 0 -> max_module-1 for the current file.
         item - e.g. 'buffer_number'
@@ -373,7 +383,10 @@ class DetectorData(object):
         uint16 or uint32 (item dependent)
 
         """
+        f = netcdf_file(path, 'r')
         buffer_header = self._get_buffer_header(f, buffer_ix, module_ix)
+        f.close()
+
         item_array = self._uint32_swap_words(buffer_header[item])
         return item_array[0]
 
@@ -403,8 +416,9 @@ class DetectorData(object):
         uint32 containing the metric
 
         """
-        f, buffer_ix, module_ix, channel = self._get_data_location(pixel_step, row, col)
-        return self._get_statistic(f, buffer_ix, module_ix, channel, metric)
+        path, buffer_ix, module_ix, channel = self._get_data_location(pixel_step, row, col)
+        result = self._get_statistic(path, buffer_ix, module_ix, channel, metric)
+        return result
 
     def buffer_header_item(self, pixel_step, row, col, item):
         """Return a header item from the buffer_header indexed by pixel_step, row, col
@@ -423,8 +437,9 @@ class DetectorData(object):
         assert item in keys
 
         # retrieve item
-        f, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
-        return self._get_buffer_header_item(f, buffer_ix, module_ix, item)
+        path, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
+        result = self._get_buffer_header_item(path, buffer_ix, module_ix, item)
+        return result
 
     def pixel_header_mode1_item(self, pixel_step, row, col, item):
         """Return a header item from the pixel_header indexed by pixel_step, row, col
@@ -443,8 +458,10 @@ class DetectorData(object):
         assert item in keys
 
         # retrieve item
-        f, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
-        return self._get_pixel_header_mode1_item(f, buffer_ix, module_ix, item)
+        path, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
+        result = self._get_pixel_header_mode1_item(path, buffer_ix, module_ix, item)
+
+        return result
 
 
 if __name__ == '__main__':

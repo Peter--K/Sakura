@@ -36,6 +36,7 @@ class pixel(object):
     def spectrum(self, *args, **kwargs):
         return self.detector_data.spectrum(*args, **kwargs)
 
+    @memoize
     def statistic(self, *args, **kwargs):
         return self.detector_data.statistic(*args, **kwargs)
 
