@@ -619,7 +619,8 @@ class MainFrame(wx.Frame):
             # in spectra ListBox, remove initial default label reading "file"
             #   if present; then add new filename to ListBox
             # also: remove preceding "SR12ID01H" from label and display file No. only
-            if self.m_checkList_Spectra.GetItems()[0] == 'file':
+            checklist_items = self.m_checkList_Spectra.GetItems()
+            if checklist_items and (checklist_items[0] == 'file'):
                 self.m_checkList_Spectra.Delete(0)
             listBoxEntry = self.fname.split('.mda')[0]
             listBoxEntry = listBoxEntry.split('SR12ID01H')[1]
@@ -745,6 +746,9 @@ class MainFrame(wx.Frame):
         # remove top file entry from File Listbox (NB: top one was last one loaded; LIFO)
         self.m_checkList_Spectra.Clear()
 
+        # restore top file entry to initial state
+        self.m_checkList_Spectra.Insert('file', 0)
+
         # clear from memory the data from last processed dataset
         del self.det, self.detSize,
         del self.averageMu, self.averageChi
@@ -754,6 +758,7 @@ class MainFrame(wx.Frame):
 
         # clear from memory all 'results' entries in 'results list'
         self.results = []
+        self.whichProcessed = []
 
         # Reset step or netCDF reader mode, allowing it to be changed on the next load
         self.reader = None
@@ -859,11 +864,11 @@ class MainFrame(wx.Frame):
         # since we have two detector panels displayed, find the corresponding pixel on
         # the other panel (here called "linkedPixel")
         if pixelID in self.pixel_ids1:
-            index = np.where(self.pixel_ids1 == pixelID)[0]
+            index = np.where(self.pixel_ids1 == pixelID)[0][0]
             linkedID = self.pixel_ids2[np.where(self.pixel_ids1 == pixelID)]
             linkedPixel = wx.FindWindowById(linkedID)
         elif pixelID in self.pixel_ids2:
-            index = np.where(self.pixel_ids2 == pixelID)[0]
+            index = np.where(self.pixel_ids2 == pixelID)[0][0]
             linkedID = self.pixel_ids1[np.where(self.pixel_ids2 == pixelID)]
             linkedPixel = wx.FindWindowById(linkedID)
         else:
