@@ -170,7 +170,8 @@ def getExtraPV(mda_dict, pv):
 
 
 def getData(fname):
-    """FUNCTION to extract data from mda-ASCII file and distribute into Pixel objects
+    """Extract data from mda-ASCII file and distribute into Pixel objects
+
     Returns: XAS scan data in a detector 'object' (variable "det")
             energy axis, transmission data array and detector filled with fluo data
     (detector object simply full of '0' values if no fluorescence data available)
@@ -201,8 +202,7 @@ def getData(fname):
             detector.det[0].pixel_header_mode1_item(i, 0, 0, 'tag0')
         except IndexError:
             print 'netCDF data truncated'
-    scanSize = i + \
-        1      # set scanSize according to the netCDF data that was available
+    scanSize = i + 1    # set scanSize according to the netCDF data that was available
     detector.steps = scanSize
 
     # read transmission data
@@ -212,16 +212,14 @@ def getData(fname):
     trans = np.empty((len(pvColumnNames), scanSize))
     for series in scanData.d:
         try:
-            tag = ':'.join(series.name.split(
-                ':')[1:])  # use the PV part after the IOC id
+            tag = ':'.join(series.name.split(':')[1:])  # use the PV part after the IOC id
             if tag in pvColumnNames:
                 trans[pvColumnNames.index(tag)] = series.data
         except:
             print 'missing PV ' + tag
 
     ts = trans[pvColumnNames.index('scaler1.T')]    # get the sample time
-    e = trans[pvColumnNames.index(
-        'EncEnergy:ActPos')] * 1000.0  # Energy axis (in eV !!)
+    e = trans[pvColumnNames.index('EncEnergy:ActPos')] * 1000.0  # Energy axis (in eV !!)
 
     # normalise I0, I1, I2 to sample_time ts (use string "scaler1:" as identifier)
     for i, name in enumerate(pvColumnNames):
@@ -240,7 +238,9 @@ def getAverage(goodPixels, det):
     """
     Compute the average of all weighted, deadtime corrected spectra
     (from det[i].weightedSpec, which is = det[i].roiCorr * det[i].weightFactor)
-    returns: averageMu [...]Chi
+
+    Returns:
+    averageMu [...]Chi
 
     """
     # goodPixels is designed to include index values <0 to mark bad pixels;
@@ -260,14 +260,15 @@ def getAverage(goodPixels, det):
     return averageMu, averageChi
 
 
-#
-# FUNCTION to run through all detector pixels and determine a weight factor
-#          (= edge-step / pre-edge-background-intensity)
-#   returns: nothing but writes weight factors
-#            into detector pixel Class as attribute to each pixel
-#
 def getWeightFactors(det, e, e0, goodPixels):
+    """Run through all detector pixels and determine a weight factor
+             (= edge-step / pre-edge-background-intensity)
 
+    Returns:
+    nothing but writes weight factors
+    into detector pixel Class as attribute to each pixel
+
+    """
     weights = np.zeros(len(det))
     for i in range(len(det)):
         det[i].weightFactor = 0
