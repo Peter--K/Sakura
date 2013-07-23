@@ -864,11 +864,11 @@ class MainFrame(wx.Frame):
         # since we have two detector panels displayed, find the corresponding pixel on
         # the other panel (here called "linkedPixel")
         if pixelID in self.pixel_ids1:
-            index = np.where(self.pixel_ids1 == pixelID)[0]
+            index = np.where(self.pixel_ids1 == pixelID)[0][0]
             linkedID = self.pixel_ids2[np.where(self.pixel_ids1 == pixelID)]
             linkedPixel = wx.FindWindowById(linkedID)
         elif pixelID in self.pixel_ids2:
-            index = np.where(self.pixel_ids2 == pixelID)[0]
+            index = np.where(self.pixel_ids2 == pixelID)[0][0]
             linkedID = self.pixel_ids1[np.where(self.pixel_ids2 == pixelID)]
             linkedPixel = wx.FindWindowById(linkedID)
         else:
