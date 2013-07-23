@@ -33,17 +33,10 @@ import numpy as np
 ##import _cm as colourmap
 from matplotlib import cm
 
-##import matplotlib
-##import scipy
-
-from scipy import polyfit
-from scipy import polyval
-from scipy.stats.stats import pearsonr
-
 import get_mda as gmda
 import edge_tables as etab
-
-
+import get_netcdf as gnc
+import readMDA
 
 #---------------------------------------------------------------------
 # An empty container ("Results") to hold averaged data; used to store
@@ -406,8 +399,14 @@ class MainFrame ( wx.Frame ):
         # array to hold filenames of files already processed
         #   (see end of event function "OnClick_Load" for first use and details)
         self.whichProcessed = []
-    
-        
+
+        # Holds a reference to the get_mda or get_netcdf module depending on the type of
+        # mda opened by the Open File dialog. Ensure that this is set from None to
+        # gmda or gnc and back to None but NOT from gmda to gnc or gnc to gmda. This will
+        # ensure that users don't try to process mapping mode and step mode data at the
+        # same time.
+        self.reader = None
+
     def __del__( self ):
         pass
     
@@ -476,24 +475,42 @@ class MainFrame ( wx.Frame ):
         
         return canvas.GetId()   # returns canvas Object ID (will be used to write
         #             into self.ATTRIBUTES after external call; see there)
+
+
+    def _mdaIsSelfContained(self, fname):
+        """A method that checks whether we have an mda file containing fpeaks+speaks+roi
+        values or whether we have that along with all MCA data in netCDF files. Just
+        checks the 'rank' entry in the mda file to make a decision.
+
+        Arguments:
+        fname - mda filename
     
-    
+        Returns:
+        True if the 'rank' entry in the mda file = 2
+        False otherwise
+
+        """
+        # get the path to the netCDF files from the mda file
+        mda = readMDA.readMDA(fname, verbose=False)
+        return (mda[0]['rank'] == 2)
+
+
     def processData(self, whichFileToProcess):
         # read in ASCII file and extract energy axis (e=data[0])
         #   transmission data (trans=data[1]), and
         #   "detector" (list of pixel objects; see "get_mda.py" for details) (det=data[2])
-        data = gmda.getData(whichFileToProcess)
+        e, trans, det = self.reader.getData(whichFileToProcess)
         
         # add these variables as attributes to the MainFrame Class (here as "self")
         #
-        self.e = data[0]            # energy axis in eV (conversion keV-->eV in "get_mda3.py")
-        self.trans = data[1]
+        self.e = e            # energy axis in eV (conversion keV-->eV in "get_mda3.py")
+        self.trans = trans
         self.t = self.trans[4][:]          # although looks redundant, but gives a separate attribute for faster access to "t"
             # March/2013:  at this stage, we are not using "self.t" anywhere; normalisation to
             #   sample time is entirely done in module "gmda" ("get_mda[...].py");
             # careful also with this explicit column assignment [4]; column numbers could change in "gmda"; check there!
         self.i0 = self.trans[1][:]  # ! --> again, careful with explicit column assignment [1]
-        self.det = data[2]
+        self.det = det
         
         self.detSize = len(self.det)
         self.scanSize = len(self.e)
@@ -504,14 +521,14 @@ class MainFrame ( wx.Frame ):
         #  (this is used for the first detector panel as information for the user)
         self.ROIaverage = np.zeros(self.detSize)
         for i in range(self.detSize) :
-            self.ROIaverage[i] = np.mean( self.det[i].roi)
-    
+            self.ROIaverage[i] = np.mean(self.det[i].roi)
+
         
         
         # Good Detector Pixels:
         # ---------------------
         #
-        assessPixels = gmda.getGoodPixels(self.det, self.detSize)
+        assessPixels = self.reader.getGoodPixels(self.det, self.detSize)
         self.goodPixels = assessPixels[0]
         excludeForeverPixels = assessPixels[1]   # no need to make that an attribute; only used here locally
         #
@@ -569,7 +586,8 @@ class MainFrame ( wx.Frame ):
         self.m_listBox_Edge.Refresh()
         #
         # garbage collection
-        temp = None
+        del temp
+        # temp = None
     
         
         
@@ -678,12 +696,7 @@ class MainFrame ( wx.Frame ):
         if dialog.ShowModal() == wx.ID_OK:
             #
             self.fname = dialog.GetFilename()
-            #
-            # separate filename from extension and test whether file has
-            #   already been converted using "mda2ascii"
-            filename = self.fname.split('.mda')[0]
-            fileExtension = '.mda'
-            
+
             # in spectra ListBox, remove initial default label reading "file"
             #   if present; then add new filename to ListBox
             # also: remove preceding "SR12ID01H" from label and display file No. only
@@ -699,7 +712,14 @@ class MainFrame ( wx.Frame ):
             #   if so, unhide
             if not self.bSizer_Controls.IsShown(self.sbSizer6) :
                 self.bSizer_Controls.Show(self.sbSizer6)
-            
+
+            # Set step or netCDF mode based on the 'rank' entry in the mda file
+            if self.reader is None:
+                if self._mdaIsSelfContained(self.fname):
+                    self.reader = gmda
+                else:
+                    self.reader = gnc
+
             #
             # process data (dead time correction; weighting; averaging; etc)
             #
@@ -828,9 +848,10 @@ class MainFrame ( wx.Frame ):
         del self.trans, self.t, self.e, self.e0, self.i0, self.edges, self.scanSize 
     
         # clear from memory all 'results' entries in 'results list'
-        del results
-        results = []
-        
+        self.results = []
+
+        # Reset step or netCDF reader mode, allowing it to be changed on the next load
+        self.reader = None
         
     
     def OnClick_Exit( self, event ):
@@ -1263,30 +1284,6 @@ class MainFrame ( wx.Frame ):
         #def OnSpinControlText( self, event ) :
         ## change spectrum displayed upon entering number
         #event.Skip()
-        
-    
-def Notepad() :
-    fname = 'SR12ID01H18879.mda'
-    command = ''.join(['mda2ascii -1 ',fname])
-    os.system(command)
-    mda_out_fname = fname.split('.mda')[0] + '.asc'
-    data = gmda.getData(mda_out_fname)
-    
-    e = data[0]
-    trans = data[1]
-    t = trans[2][:]
-    det = data[2]
-    
-    colours = cm.jet                            # @UndefinedVariable
-    
-    #roi_totals = np.zeros(100)
-    #roi_totals[i] = np.sum(det[i].roi)/len(e)
-    #roi_max = max(roi_totals)
-    #roi_min = min(roi_totals)
-    #roi_totals = (colours.N-1) * (roi_totals - roi_min)/(roi_max - roi_min)
-    
-    return data
-
 
 
 ##
