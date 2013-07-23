@@ -16,7 +16,8 @@ from utils import memoize
 # faster than netCDF4 and are pure-Python modules, so they are preferred here.
 # Note that the data endianness is treated differently by netCDF4.
 NETCDF_READER = None
-uint16 = '>u2'; uint32 = '>u4'
+uint16 = '>u2'
+uint32 = '>u4'
 try:
     from scipy.io import netcdf_file
     NETCDF_READER = 'scipy'
@@ -184,8 +185,9 @@ class DetectorData(object):
         if pattern in files:
             return [pattern]
         else:
-            re_matches = [(re.match(pattern, f), f) for f in files if re.match(pattern, f)]
-            filenames = [m[1] for m in re_matches if int(m[0].group(1))==n]
+            re_matches = [(re.match(
+                pattern, f), f) for f in files if re.match(pattern, f)]
+            filenames = [m[1] for m in re_matches if int(m[0].group(1)) == n]
             return filenames
 
     #@memoize
@@ -206,14 +208,14 @@ class DetectorData(object):
         file_n = self.first_file_n + pixel_step // self.buffers_per_file
         # make a list of tuples: (path, [list of matching files])
         filepaths = [(path, DetectorData._matching_n(os.listdir(path), regex,
-                    file_n)) for path in self.dirpaths]
+                                                     file_n)) for path in self.dirpaths]
         # reassemble full paths to matching files but keep filename for sorting
         unsortedpaths = [(f, os.path.join(path, f))
-                        for path, filenames in filepaths for f in filenames]
+                         for path, filenames in filepaths for f in filenames]
         if not unsortedpaths:
             raise IndexError
         # sort based on filename ignoring path
-        sortedpaths = sorted(unsortedpaths, key=lambda x:x[0])
+        sortedpaths = sorted(unsortedpaths, key=lambda x: x[0])
         # finally just keep the full paths, now sorted based on filename
         paths = [p[1] for p in sortedpaths]
         return paths
@@ -239,14 +241,14 @@ class DetectorData(object):
         filepaths = self._get_file_paths_for_pixel_step(pixel_step)
 
         # Get module index from element index
-        module_ix, channel = divmod(row*self.rows+col, CHANNELS_PER_MODULE)
+        module_ix, channel = divmod(row * self.rows + col, CHANNELS_PER_MODULE)
 
         # Now get the file and module index within that file by assuming the modules are
         # split evenly across the IOCs and are in increasing sequential order
         number_of_files = len(filepaths)
-        number_of_detector_elements = self.rows*self.cols
+        number_of_detector_elements = self.rows * self.cols
         file_split_value = int(np.ceil(float(
-                    number_of_detector_elements/CHANNELS_PER_MODULE) / number_of_files))
+            number_of_detector_elements / CHANNELS_PER_MODULE) / number_of_files))
         file_ix, module_ix = divmod(module_ix, file_split_value)
 
         # Get a netCDF file path
@@ -280,7 +282,8 @@ class DetectorData(object):
         """
         if item_array.dtype == uint32:
             i = item_array.view(dtype=np.dtype([('f0', '>u2'), ('f1', '>u2')]))
-            item_array = (i['f1'].astype(np.uint32)<<16) + i['f0'].astype(np.uint32)
+            item_array = (
+                i['f1'].astype(np.uint32) << 16) + i['f0'].astype(np.uint32)
         return item_array
 
     def _get_mode1_pixel_data(self, f, buffer_ix, module_ix):
@@ -298,8 +301,10 @@ class DetectorData(object):
         """
         array_data = f.variables['array_data']
         module_data = array_data[buffer_ix, module_ix, :]
-        data = module_data[256: 256 + 256 + 4*self.mca_bins]    # skip buffer header
-        dynamic_data = data.view(pixel_header_mode1_static_fixedbins_dtype(self.mca_bins))
+        data = module_data[256: 256 + 256 + 4 * self.mca_bins]
+            # skip buffer header
+        dynamic_data = data.view(
+            pixel_header_mode1_static_fixedbins_dtype(self.mca_bins))
         return dynamic_data
 
     def _get_fixedbins_spectrum(self, path, buffer_ix, module_ix, channel):
@@ -343,7 +348,8 @@ class DetectorData(object):
         f.close()
 
         assert metric in ['realtime', 'livetime', 'triggers', 'output_events']
-        item_array = self._uint32_swap_words(dynamic_data['ch{}_{}'.format(channel, metric)])
+        item_array = self._uint32_swap_words(
+            dynamic_data['ch{}_{}'.format(channel, metric)])
         return item_array[0]
 
     def _get_pixel_header_mode1_item(self, path, buffer_ix, module_ix, item):
@@ -416,8 +422,10 @@ class DetectorData(object):
         uint32 containing the metric
 
         """
-        path, buffer_ix, module_ix, channel = self._get_data_location(pixel_step, row, col)
-        result = self._get_statistic(path, buffer_ix, module_ix, channel, metric)
+        path, buffer_ix, module_ix, channel = self._get_data_location(
+            pixel_step, row, col)
+        result = self._get_statistic(
+            path, buffer_ix, module_ix, channel, metric)
         return result
 
     def buffer_header_item(self, pixel_step, row, col, item):
@@ -437,7 +445,8 @@ class DetectorData(object):
         assert item in keys
 
         # retrieve item
-        path, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
+        path, buffer_ix, module_ix, _ = self._get_data_location(
+            pixel_step, row, col)
         result = self._get_buffer_header_item(path, buffer_ix, module_ix, item)
         return result
 
@@ -454,12 +463,15 @@ class DetectorData(object):
 
         """
         # Check item validity
-        keys = [i[0] for i in pixel_header_mode1_static_fixedbins_dtype(self.mca_bins)]
+        keys = [i[0]
+                for i in pixel_header_mode1_static_fixedbins_dtype(self.mca_bins)]
         assert item in keys
 
         # retrieve item
-        path, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
-        result = self._get_pixel_header_mode1_item(path, buffer_ix, module_ix, item)
+        path, buffer_ix, module_ix, _ = self._get_data_location(
+            pixel_step, row, col)
+        result = self._get_pixel_header_mode1_item(
+            path, buffer_ix, module_ix, item)
 
         return result
 
@@ -469,7 +481,7 @@ if __name__ == '__main__':
 
     #@profile(entries=None, immediate=True)
     def read_detector_data(detector_data, pixel_step):
-        data = detector_data.spectrum(0,0,0)
+        data = detector_data.spectrum(0, 0, 0)
 
     #@profile(entries=None, immediate=True)
     def read_detector_data_all(detector_data, pixel_step):
@@ -481,17 +493,19 @@ if __name__ == '__main__':
     BASE_DIR = r'C:\Users\gary\VeRSI\NeCTAR_AS_XAS\test_data\2013-04-22_mapping_mode_collected\mnt\win'
     FILE1_DIR = os.path.join(BASE_DIR, r'ele100_1\out_1366616251')
     FILE2_DIR = os.path.join(BASE_DIR, r'ele100_2\out_1366616251')
-    detector_data = DetectorData(shape=(10, 10), pixelsteps_per_buffer=4, buffers_per_file=5,
-                                 dirpaths=(FILE1_DIR, FILE2_DIR), filepattern='ioc5[3-4]_([0-9]*)\.nc',
-                                 mca_bins=2048, first_file_n=1)
+    detector_data = DetectorData(
+        shape=(10, 10), pixelsteps_per_buffer=4, buffers_per_file=5,
+        dirpaths=(FILE1_DIR, FILE2_DIR), filepattern='ioc5[3-4]_([0-9]*)\.nc',
+        mca_bins=2048, first_file_n=1)
     pixel_step = 5
     read_detector_data(detector_data, pixel_step)
     read_detector_data_all(detector_data, pixel_step)
 
     # read data from individual files
-    FILE_DIR = r'C:\Users\gary\VeRSI\NeCTAR_AS_XAS\3rd_party_sw\asxas IDL\data\XAS_Example_Data'    
-    detector_data = DetectorData(shape=(10, 10), pixelsteps_per_buffer=1, buffers_per_file=1,
-                                 dirpaths=FILE_DIR, filepattern='Cdstandard94test1_([0-9]*)',
-                                 mca_bins=2048, first_file_n=1)
+    FILE_DIR = r'C:\Users\gary\VeRSI\NeCTAR_AS_XAS\3rd_party_sw\asxas IDL\data\XAS_Example_Data'
+    detector_data = DetectorData(
+        shape=(10, 10), pixelsteps_per_buffer=1, buffers_per_file=1,
+        dirpaths=FILE_DIR, filepattern='Cdstandard94test1_([0-9]*)',
+        mca_bins=2048, first_file_n=1)
     pixel_step = 44
     read_detector_data_all(detector_data, pixel_step)
