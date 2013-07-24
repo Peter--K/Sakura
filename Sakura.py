@@ -54,7 +54,8 @@ class MainFrame(wx.Frame):
                           size=wx.Size(1250, 780),
                           ##size = wx.Size( 2000,1200 ),
                           style=wx.HSCROLL | wx.VSCROLL | wx.TAB_TRAVERSAL |
-                                wx.DEFAULT_FRAME_STYLE)
+                                wx.DEFAULT_FRAME_STYLE |
+                                wx.FULL_REPAINT_ON_RESIZE )
 
         self.SetSizeHintsSz(wx.DefaultSize, wx.DefaultSize)
 
@@ -372,6 +373,10 @@ class MainFrame(wx.Frame):
         # ensure that users don't try to process mapping mode and step mode data at the
         # same time.
         self.reader = None
+        
+        # Holds the index of the last detector pixel left-clicked by the user
+        self.index_lastPixelLeftClicked = None
+
 
     def __del__(self):
         pass
@@ -953,16 +958,21 @@ class MainFrame(wx.Frame):
             # get info of current font used to label the pixel of interest
             #   and set BOLD to show that this pixel spectrum is being plotted
             currentFont = clickedPixel.GetFont()
-
-            #if self.index_lastPixelLeftClicked != None :
-            #    pass
-
-            if currentFont.GetWeightString() == 'wxNORMAL':
-                currentFont.SetWeight(wx.BOLD)
-            else:
-                currentFont.SetWeight(wx.NORMAL)
+            currentFont.SetWeight(wx.BOLD)
             clickedPixel.SetFont(currentFont)
             linkedPixel.SetFont(currentFont)
+            
+            if self.index_lastPixelLeftClicked != None :
+                lastPixel1 = wx.FindWindowById( self.pixel_ids1[self.index_lastPixelLeftClicked] )
+                lastPixel2 = wx.FindWindowById( self.pixel_ids2[self.index_lastPixelLeftClicked] )
+                lastFont = lastPixel1.GetFont()
+                lastFont.SetWeight(wx.NORMAL)
+                lastPixel1.SetFont(lastFont)
+                lastPixel2.SetFont(lastFont)
+                lastPixel1.SetForegroundColour('black')
+                lastPixel2.SetForegroundColour('black')
+                lastPixel1.Refresh()
+                lastPixel2.Refresh()
 
             # Refresh pixels
             clickedPixel.Refresh()
