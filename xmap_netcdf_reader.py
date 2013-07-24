@@ -230,7 +230,7 @@ class DetectorData(object):
         row, col - detector element row and column
 
         Returns:
-        A 4-tuple (f, buffer_ix, module_ix, channel):
+        A 4-tuple (path, buffer_ix, module_ix, channel):
         path - netCDF file path
         buffer_ix - 0-based int referring to buffer contained in netCDF file.
         module_ix - 0 -> max_module-1 for the current file.
