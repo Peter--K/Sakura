@@ -118,8 +118,8 @@ class Detector(list):
         self.iter_pointer = 0
         # The roi limits will apply to all contained detector elements - the pixel
         # element objects keep a reference to this object so they can access these fields
-        self.roi_low = 0
-        self.roi_high = -1
+        self.roi_low = None
+        self.roi_high = None
 
     # Implement __getitem__, __setitem__, __iter__ and __len__ methods to implement
     # list-like behaviour
@@ -152,19 +152,21 @@ class Detector(list):
         self.roi_high = high
 
 
-def getExtraPV(mda_dict, pv):
+def getExtraPV(mda_list, pv):
     """Return the PV value using the PV part of an IOC:PV id for matching
-    e.g. getExtraPV(mda_dict, 'CUR_TIME_STAMP') will match SR12ID01MC01:CUR_TIME_STAMP
+    e.g. getExtraPV(mda_list, 'CUR_TIME_STAMP') will match SR12ID01MC01:CUR_TIME_STAMP
+    then use this as the key to retrieve the corresponding value from the dictionary
+    inside mda_list
 
     Arguments:
-    mda_dict - the dict returned by Tim Mooney's readMDA
+    mda_list - the list returned by Tim Mooney's readMDA
     pv - a string, e.g. 'CUR_TIME_STAMP'
 
     Returns:
-    The matching PV keyname in the mda_dict
+    The matching PV keyname in the dict inside mda_list
 
     """
-    extra_pvs = mda_dict[0]
+    extra_pvs = mda_list[0]         # get the first list entry - a dict containing the PVs 
     keys = {i.split(':')[-1]: i for i in extra_pvs}
     return extra_pvs[keys[pv]]
 
