@@ -58,20 +58,20 @@ class Pixel(object):
     @memoize
     def fpeaks(self):
         return np.array([self.statistic(step, self.row, self.col, 'realtime')
-                        for step in range(self.detector.steps)])
+                        for step in self.detector.steprange])
 
     @property
     @memoize
     def speaks(self):
         return np.array([self.statistic(step, self.row, self.col, 'livetime')
-                        for step in range(self.detector.steps)])
+                        for step in self.detector.steprange])
 
     @property
     @memoize
     def roi(self):
         return np.array([self._GetSpectrumROI(step, self.detector.roi_low,
                          self.detector.roi_high).sum()
-                        for step in range(self.detector.steps)])
+                        for step in self.detector.steprange])
 
 #     def NormT(self, tsample) :
 #         # normalise all raw data (FastPeaks, SlowPeaks, ROI) to sampling time tsample
@@ -114,7 +114,7 @@ class Detector(list):
         self.rows, self.cols = detector_data.shape
         detector_size = self.rows * self.cols
         self.det = [Pixel(self) for _ in range(detector_size)]
-        self.steps = None           # Holds no. of energy/mca/pixel-steps
+        self.steprange = None           # Holds an iterable containing the energy/mca/pixel-steps
         self.iter_pointer = 0
         # The roi limits will apply to all contained detector elements - the pixel
         # element objects keep a reference to this object so they can access these fields
@@ -171,6 +171,28 @@ def getExtraPV(mda_list, pv):
     return extra_pvs[keys[pv]]
 
 
+def highest_available_scandata(detector, scanSize):
+    """Step through the netCDF files to verify we have all the fluoresence data available
+    Arguments:
+    detector - detector instance reference
+    scanSize - expected number of pixel steps, likely based on the number written in the
+               mda file
+
+    Returns:
+    index of the highest pixel step read (0-based)
+
+    Exceptions:
+    Raises IndexError if expected data is unavailable
+
+    """
+    for i in range(scanSize):
+        try:
+            detector.det[0].pixel_header_mode1_item(i, 0, 0, 'tag0', check_validity=False)
+        except IndexError:
+            print 'netCDF data truncated'
+    return i + 1
+
+
 def getData(fname):
     """Extract data from mda-ASCII file and distribute into Pixel objects
 
@@ -192,20 +214,19 @@ def getData(fname):
 
     # create and set the reader for the fluorescence detector
     detector_data = DetectorData(shape=(10, 10), pixelsteps_per_buffer=1,
-                                 buffers_per_file=1, dirpaths=netcdf_directory,
-                                 filepattern='ioc5[3-4]_([0-9]*)\.nc', mca_bins=2048, first_file_n=1)
+        buffers_per_file=1, dirpaths=netcdf_directory,
+        filepattern='ioc5[3-4]_([0-9]*)\.nc', mca_bins=2048, first_file_n=1)
 
     detector = Detector(detector_data)
-    detector.set_roi_limits(600, 800)
 
-    # step through the netCDF files to verify we have all the fluoresence data available
-    for i in range(scanSize):
-        try:
-            detector.det[0].pixel_header_mode1_item(i, 0, 0, 'tag0')
-        except IndexError:
-            print 'netCDF data truncated'
-    scanSize = i + 1    # set scanSize according to the netCDF data that was available
-    detector.steps = scanSize
+    # set scanSize according to the netCDF data that was available
+    scanSize = highest_available_scandata(detector, scanSize)
+    detector.steprange = range(scanSize)
+
+    # TODO: get rid of the next 2 lines
+    detector.set_roi_limits(600, 800)   # start with this roi range
+#     scanSize = 20
+#     detector.steprange = range(129,158)      # start with first 10 energy points
 
     # read transmission data
     pvColumnNames = ['EncEnergy:ActPos', 'scaler1:S2C', 'scaler1:S3C',
@@ -216,8 +237,9 @@ def getData(fname):
         try:
             tag = ':'.join(series.name.split(':')[1:])  # use the PV part after the IOC id
             if tag in pvColumnNames:
-                trans[pvColumnNames.index(tag)] = series.data
-        except:
+                trans[pvColumnNames.index(tag)] = series.data[:scanSize]
+        except Exception as e:
+            print e
             print 'missing PV ' + tag
 
     ts = trans[pvColumnNames.index('scaler1.T')]    # get the sample time

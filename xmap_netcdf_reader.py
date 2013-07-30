@@ -185,12 +185,13 @@ class DetectorData(object):
         if pattern in files:
             return [pattern]
         else:
-            re_matches = [(re.match(
-                pattern, f), f) for f in files if re.match(pattern, f)]
+            prog = re.compile(pattern)
+            re_matches = [(prog.match(f), f) for f in files if prog.match(f)]
             filenames = [m[1] for m in re_matches if int(m[0].group(1)) == n]
             return filenames
 
-    #@memoize
+
+    @memoize
     def _get_file_paths_for_pixel_step(self, pixel_step):
         """Get the paths to netCDF files on disk corresponding to a given
         pixel_step, sorted based on filename.
@@ -424,14 +425,14 @@ class DetectorData(object):
         """
         path, buffer_ix, module_ix, channel = self._get_data_location(
             pixel_step, row, col)
-        result = self._get_statistic(
-            path, buffer_ix, module_ix, channel, metric)
+        result = self._get_statistic(path, buffer_ix, module_ix, channel, metric)
         return result
 
-    def buffer_header_item(self, pixel_step, row, col, item):
+    def buffer_header_item(self, pixel_step, row, col, item, check_validity=True):
         """Return a header item from the buffer_header indexed by pixel_step, row, col
 
         Keyword arguments:
+        check_validity - Set False to skip check for item
         pixel_step - 0-based index to "pixel" step, i.e. mono position
         row, col - detector element row and column
         item - e.g. 'total_pixel_block_size'
@@ -440,20 +441,22 @@ class DetectorData(object):
         uint16 or uint32 (item dependent)
 
         """
-        # Check item validity
-        keys = [i[0] for i in buffer_header_dtype]
-        assert item in keys
+        if check_validity:
+            # Check item validity
+            keys = [i[0] for i in buffer_header_dtype]
+            assert item in keys
 
         # retrieve item
-        path, buffer_ix, module_ix, _ = self._get_data_location(
-            pixel_step, row, col)
+        path, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
         result = self._get_buffer_header_item(path, buffer_ix, module_ix, item)
         return result
 
-    def pixel_header_mode1_item(self, pixel_step, row, col, item):
+
+    def pixel_header_mode1_item(self, pixel_step, row, col, item, check_validity=True):
         """Return a header item from the pixel_header indexed by pixel_step, row, col
 
         Keyword arguments:
+        check_validity - Set False to skip check for item
         pixel_step - 0-based index to "pixel" step, i.e. mono position
         row, col - detector element row and column
         item - e.g. 'total_pixel_block_size'
@@ -462,16 +465,15 @@ class DetectorData(object):
         uint16 or uint32 (item dependent)
 
         """
-        # Check item validity
-        keys = [i[0]
+        if check_validity:
+            # Check item validity
+            keys = [i[0]
                 for i in pixel_header_mode1_static_fixedbins_dtype(self.mca_bins)]
-        assert item in keys
+            assert item in keys
 
         # retrieve item
-        path, buffer_ix, module_ix, _ = self._get_data_location(
-            pixel_step, row, col)
-        result = self._get_pixel_header_mode1_item(
-            path, buffer_ix, module_ix, item)
+        path, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
+        result = self._get_pixel_header_mode1_item(path, buffer_ix, module_ix, item)
 
         return result
 
