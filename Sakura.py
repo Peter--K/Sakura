@@ -488,7 +488,7 @@ class MainFrame(wx.Frame):
             self.ROIaverage[i] = np.mean(self.det[i].roi)
 
         # Good Detector Pixels:
-        assessPixels = self.reader.getGoodPixels(self.det, self.detSize)
+        assessPixels = gmda.getGoodPixels(self.det, self.detSize)
         self.goodPixels = assessPixels[0]
         excludeForeverPixels = assessPixels[1]
             # no need to make that an attribute; only used here locally
