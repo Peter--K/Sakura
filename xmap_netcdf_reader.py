@@ -8,6 +8,8 @@ import numpy as np
 import os
 import re
 from utils import memoize
+from collections import defaultdict
+
 
 # This module supports three netCDF file readers; scipy.io.netcdf_file,
 # pupynere.netcdf_file and netCDF4.Dataset and prefers them in that order.
@@ -166,6 +168,7 @@ class DetectorData(object):
         self.dirpaths = dirpaths
         self.filepattern = filepattern
         self.first_file_n = first_file_n
+        self.file_paths_dict = self._get_file_paths_for_all_pixel_steps()
 
     @staticmethod
     def _matching_n(files, pattern, n):
@@ -190,12 +193,44 @@ class DetectorData(object):
             filenames = [m[1] for m in re_matches if int(m[0].group(1)) == n]
             return filenames
 
+    def _get_file_paths_for_all_pixel_steps(self):
+        """Get the paths to netCDF files on disk corresponding to all available
+        pixel_steps, sorted based on filename.
+
+        Returns:
+        a dictionary keyed by pixel step with values containing a sorted list of full
+        paths to files for that step. Sorting is based on the filename only without the
+        path info.
+
+        """
+        regex = self.filepattern
+        # get a list of all files with full paths 
+        allfiles = []
+        for d in self.dirpaths:
+            files = os.listdir(d)
+            paths = [os.path.join(d, f) for f in files]
+            allfiles.extend(paths)
+
+        # now create a dict with keys matching the capture group value and values a list
+        # of all matching files
+        prog = re.compile(regex)
+        files = {os.path.basename(f): f for f in allfiles}
+        pathsdict = defaultdict(list)
+        for f in files:
+            if prog.match(f):
+                pathsdict[int(prog.match(f).group(1))].append(files[f])
+
+        # now sort all the lists based on the basename only, i.e. ignore the directory
+        for i in pathsdict:
+            pathsdict[i] = sorted(pathsdict[i], key=lambda x: os.path.basename(x))
+
+        return pathsdict
+
 
     @memoize
     def _get_file_paths_for_pixel_step(self, pixel_step):
         """Get the paths to netCDF files on disk corresponding to a given
         pixel_step, sorted based on filename.
-        Memoized to speed up multiple accesses to the same pixel.
         Raises an IndexError if files are not found.
 
         Keyword arguments:
@@ -205,6 +240,7 @@ class DetectorData(object):
         list of full paths to files for the specified pixel_step.
 
         """
+        '''
         regex = self.filepattern
         file_n = self.first_file_n + pixel_step // self.buffers_per_file
         # make a list of tuples: (path, [list of matching files])
@@ -219,7 +255,11 @@ class DetectorData(object):
         sortedpaths = sorted(unsortedpaths, key=lambda x: x[0])
         # finally just keep the full paths, now sorted based on filename
         paths = [p[1] for p in sortedpaths]
+        assert self.file_paths_dict[file_n] == paths
         return paths
+        '''
+        file_n = self.first_file_n + pixel_step // self.buffers_per_file
+        return self.file_paths_dict[file_n]
 
     @memoize
     def _get_data_location(self, pixel_step, row, col):
@@ -302,10 +342,18 @@ class DetectorData(object):
         """
         array_data = f.variables['array_data']
         module_data = array_data[buffer_ix, module_ix, :]
-        data = module_data[256: 256 + 256 + 4 * self.mca_bins]
-            # skip buffer header
-        dynamic_data = data.view(
-            pixel_header_mode1_static_fixedbins_dtype(self.mca_bins))
+        data = module_data[256: 256 + 256 + 4 * self.mca_bins]  # skip buffer header
+        dynamic_data = data.view(pixel_header_mode1_static_fixedbins_dtype(self.mca_bins))
+        return dynamic_data
+
+    @memoize
+    def _get_mode1_pixel_data_by_path(self, path, buffer_ix, module_ix):
+        """By separating this out, we can cache the results, ensuring only one file read
+        for multiple data reads from a pixel block
+        """
+        f = netcdf_file(path, 'r')
+        dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
+        f.close()
         return dynamic_data
 
     def _get_fixedbins_spectrum(self, path, buffer_ix, module_ix, channel):
@@ -322,11 +370,8 @@ class DetectorData(object):
         An ndarray with self.mca_bins uint16-words
 
         """
-        f = netcdf_file(path, 'r')
-        dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
-        f.close()
-
-        return dynamic_data['ch{}_spectrum'.format(channel)][0]
+        data = self._get_mode1_pixel_data_by_path(path, buffer_ix, module_ix)
+        return data['ch{}_spectrum'.format(channel)][0]
 
     def _get_statistic(self, path, buffer_ix, module_ix, channel, metric):
         """Return the channel statistic specified by metric from the pixel data
@@ -344,13 +389,10 @@ class DetectorData(object):
         uint32 containing the metric
 
         """
-        f = netcdf_file(path, 'r')
-        dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
-        f.close()
+        data = self._get_mode1_pixel_data_by_path(path, buffer_ix, module_ix)
 
         assert metric in ['realtime', 'livetime', 'triggers', 'output_events']
-        item_array = self._uint32_swap_words(
-            dynamic_data['ch{}_{}'.format(channel, metric)])
+        item_array = self._uint32_swap_words(data['ch{}_{}'.format(channel, metric)])
         return item_array[0]
 
     def _get_pixel_header_mode1_item(self, path, buffer_ix, module_ix, item):
@@ -368,11 +410,8 @@ class DetectorData(object):
         uint16 or uint32 (item dependent)
 
         """
-        f = netcdf_file(path, 'r')
-        dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
-        f.close()
-
-        item_array = self._uint32_swap_words(dynamic_data[item])
+        data = self._get_mode1_pixel_data_by_path(path, buffer_ix, module_ix)
+        item_array = self._uint32_swap_words(data[item])
         return item_array[0]
 
     def _get_buffer_header_item(self, path, buffer_ix, module_ix, item):
@@ -450,7 +489,6 @@ class DetectorData(object):
         path, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
         result = self._get_buffer_header_item(path, buffer_ix, module_ix, item)
         return result
-
 
     def pixel_header_mode1_item(self, pixel_step, row, col, item, check_validity=True):
         """Return a header item from the pixel_header indexed by pixel_step, row, col
