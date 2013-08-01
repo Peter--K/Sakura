@@ -54,6 +54,10 @@ class Pixel(object):
         spectrum = self.detector_data.spectrum(pixel_step, self.row, self.col)
         return spectrum[low:high]
 
+    @memoize
+    def _roi(self, roi_low, roi_high):
+        return np.array([self._GetSpectrumROI(step, roi_low, roi_high).sum()
+                         for step in self.detector.steprange])
     @property
     @memoize
     def fpeaks(self):
@@ -67,11 +71,8 @@ class Pixel(object):
                         for step in self.detector.steprange])
 
     @property
-    @memoize
     def roi(self):
-        return np.array([self._GetSpectrumROI(step, self.detector.roi_low,
-                         self.detector.roi_high).sum()
-                        for step in self.detector.steprange])
+        return self._roi(self.detector.roi_low, self.detector.roi_high)
 
 #     def NormT(self, tsample) :
 #         # normalise all raw data (FastPeaks, SlowPeaks, ROI) to sampling time tsample
@@ -256,137 +257,6 @@ def getData(fname):
     ## call is via function:  detDeadCorr(det, goodPixels)
 
     return e, trans, detector
-
-
-def getAverage(goodPixels, det):
-    """
-    Compute the average of all weighted, deadtime corrected spectra
-    (from det[i].weightedSpec, which is = det[i].roiCorr * det[i].weightFactor)
-
-    Returns:
-    averageMu [...]Chi
-
-    """
-    # goodPixels is designed to include index values <0 to mark bad pixels;
-    #    thus, needs compressing out all indices <0 first before using in a loop
-    goodPixels = goodPixels[goodPixels >= 0]
-    #
-    scanSize = len(
-        det[0].fpeaks)   # choose random pixel array to determine scan length
-    averageMu = np.zeros(scanSize)
-    averageChi = np.zeros(len(det[goodPixels[0]].chi))
-    for i in goodPixels:
-        averageMu = averageMu + det[i].weightedSpec
-        averageChi = averageChi + det[i].chi
-    averageMu = averageMu / len(goodPixels)
-    averageChi = averageChi / len(goodPixels)
-
-    return averageMu, averageChi
-
-
-def getWeightFactors(det, e, e0, goodPixels):
-    """Run through all detector pixels and determine a weight factor
-             (= edge-step / pre-edge-background-intensity)
-
-    Returns:
-    nothing but writes weight factors
-    into detector pixel Class as attribute to each pixel
-
-    """
-    weights = np.zeros(len(det))
-    for i in range(len(det)):
-        det[i].weightFactor = 0
-
-    det[0].k = 1.0
-    for i in goodPixels:
-        det[i].chi = 1.0
-        weights[i] = 1.0
-
-    weights = weights / np.nanmax(weights)
-
-    for i in goodPixels:
-        det[i].weightFactor = weights[i]
-
-    return weights
-
-
-def getGoodPixels(det, detSize):
-    """FUNCTION to check data from individual detector pixels for quality and
-              remove any bad pixels from the list of pixels considered
-       returns: "goodPixels", a 1-D array of "detSize" marking bad pixels with value "-2"
-    """
-    # define goodPixels array
-    goodPixels = np.arange(detSize)
-
-    #     to start with, assume that all pixels (spectra) are good
-    #  (list is complete; over time, elements of bad pixels will be set to -2 or -1;
-    #    * where goodPixels is used, the list will be compressed
-    #      to remove the '-2' indices and thus permit easy
-    #       looping via 'for i in goodPixels : [...]';
-    #    * later in the code, we use '-1' to exclude spectra
-    #      following user interaction; the '-2's cannot be undone
-    #      while the '-1's can
-    #    * ultimately, goodPixels will contian indices >0
-    #     of spectra to be processed further and included in the
-    #     weighted, corrected average of pixels)
-
-    # ------------------------------------------------------------------------
-    # test for bad pixels -- Step 1:
-    #    all pixels that are defunct (average <= 10 cts/sec) are excluded
-    # ------------------------------------------------------------------------
-    tempROIaverage = np.zeros(detSize)
-    for i in range(detSize):
-        tempROIaverage[i] = np.mean(det[i].roi)
-
-    # search through ROIaverage and set to '-2' all indices of elements
-    #    below certain threshold  (here, ROIaverage <10 cts/sec)
-    excludeForeverPixels = np.where(tempROIaverage < 10)[0]
-    goodPixels[excludeForeverPixels] = -2
-
-    # ------------------------------------------------------------------------
-    # test for bad pixels -- Step 2:
-    #    high TCR pixels
-    # ------------------------------------------------------------------------
-    #
-    # above approach works well for defunct (low count rate) detector
-    #    pixels, but it does not work for pixels that are just clocking up
-    #    randomly high count rates
-    # thus, out of now remaining GoodPixels,
-    #    if TCR average of pixel > 3-times average TCR-average, then exclude
-    #   the factor "3" is stored in "cutOffFactor = 3"; *** modify this if required ***
-    #
-    cutOffFactor = 3
-    remainPixels = np.compress(goodPixels >= 0, goodPixels)
-    tempTCRaverage = []
-    for i in remainPixels:
-        tempTCRaverage = np.append(tempTCRaverage, np.mean(det[i].fpeaks))
-    badTCRpixels = np.where(
-        tempTCRaverage > cutOffFactor * np.mean(tempTCRaverage))
-    goodPixels[remainPixels[badTCRpixels]] = -2
-    excludeForeverPixels = np.append(excludeForeverPixels, badTCRpixels)
-    print 'exclude forever (mark red): ', excludeForeverPixels
-
-    # ------------------------------------------------------------------------
-    # test for bad pixels -- Step 3:
-    #    SlowPeaks have zero values
-    # ------------------------------------------------------------------------
-    # problematic are also pixels that show Zeros in some of the SlowPeaks
-    #   ("det.speaks") as they cause infinity values ("nan") when computing #
-    #   detector dead time correction by using the ratio "FastPeaks/SlowPeaks";
-    # thus, out of now remaining GoodPixels,
-    #    if SlowPeaks = 0 anywhere, set value to +1
-    #    (a spectrum could still be OK, even though there might be a zero
-    #     count in the background before the edge in low-TCR scenarios)
-    #
-    #
-    # GR20130716
-    # I've commented out the following line because I don't want to overwrite the speaks
-    # property - I prefer to just catch any divide-by-zero exceptions as they occur
-    #
-    # for i in goodPixels :
-    #     det[i].speaks[ np.where(det[i].speaks == 0) ]  = 1
-    #
-    return goodPixels, excludeForeverPixels
 
 
 if __name__ == '__main__':
