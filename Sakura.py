@@ -31,6 +31,7 @@ import get_mda as gmda
 import edge_tables as etab
 import get_netcdf as gnc
 import readMDA
+import time
 
 
 class Results(object):
@@ -492,7 +493,7 @@ class MainFrame(wx.Frame):
             self.ROIaverage[i] = np.mean(self.det[i].roi)
 
         # Good Detector Pixels:
-        assessPixels = self.reader.getGoodPixels(self.det, self.detSize)
+        assessPixels = gmda.getGoodPixels(self.det, self.detSize)
         self.goodPixels = assessPixels[0]
         excludeForeverPixels = assessPixels[1]
             # no need to make that an attribute; only used here locally
@@ -609,6 +610,9 @@ class MainFrame(wx.Frame):
     #
     ############################################
 
+    from profilehooks import profile
+    
+    @profile(entries=None, immediate=True)
     def OnClick_Load(self, event):
         """Load/Save/etc buttons (in controls area)"""
         dialog = wx.FileDialog(
@@ -620,6 +624,8 @@ class MainFrame(wx.Frame):
 
         if dialog.ShowModal() == wx.ID_OK:
             self.fname = dialog.GetFilename()
+
+            start_time = time.time()
 
             # in spectra ListBox, remove initial default label reading "file"
             #   if present; then add new filename to ListBox
@@ -704,6 +710,8 @@ class MainFrame(wx.Frame):
                 self.m_button_Unload.Enable()
                 self.m_listBox_Edge.Enable()
                 self.m_checkList_Spectra.Enable()
+
+            print "loading took", time.time() - start_time, "seconds"
 
         #clean-up
         dialog.Destroy()

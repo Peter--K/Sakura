@@ -30,6 +30,8 @@ from scipy.stats.stats import pearsonr
 
 import edge_tables as etab
 
+from utils import memoize
+
 
 class pixel(object):
     """Class to describe a detector pixel and its 'contents'.
@@ -210,6 +212,7 @@ def getData(fname):
     return e, trans, det
 
 
+@memoize
 def getGoodPixels(det, detSize):
     """Check data from individual detector pixels for quality and
     remove any bad pixels from the list of pixels considered
@@ -281,8 +284,8 @@ def getGoodPixels(det, detSize):
     #	 count in the background before the edge in low-TCR scenarios)
     #
     #
-    for i in goodPixels:
-        det[i].speaks[np.where(det[i].speaks == 0)] = 1
+#     for i in goodPixels:
+#         det[i].speaks[np.where(det[i].speaks == 0)] = 1
 
     return goodPixels, excludeForeverPixels
 
@@ -299,6 +302,7 @@ def normaliseI0(det, goodPixels, i0):
         det[i].NormI0(i0)
 
 
+@memoize
 def getWeightFactors(det, e, e0, goodPixels):
     """
     Run through all detector pixels and determine a weight factor
@@ -389,6 +393,7 @@ def applyWeights(det, goodPixels):
         det[i].WeightSpectrum()
 
 
+@memoize
 def getCorrels(det, goodPixels):
     """Compute spectra correlation coefficients (using Pearsons Correlation)
 
@@ -401,9 +406,11 @@ def getCorrels(det, goodPixels):
     goodPixels = np.compress(goodPixels >= 0, goodPixels)
 
     correls = np.zeros(len(det))
+
     for i in goodPixels:
         for j in goodPixels:
-            correls[i] = correls[i] + pearsonr(det[i].roi, det[j].roi)[0]
+            correls[i] += pearsonr(det[i].roi, det[j].roi)[0]
+
     correls = correls / len(det)
 
     return correls
@@ -436,8 +443,7 @@ def getE0(e):
         energyList = np.asarray(etab.edgeEnergy[k])
         for j in range(len(energyList)):
             if energyList[j] > eMin and energyList[j] < eMax and j < 4:
-                elements.append(k)
-                                # store dict keys (element names) in list
+                elements.append(k)          # store dict keys (element names) in list
                 shells.append(etab.QNTransition[j])
                                 # get corresponding shell and put into list
                 edgeEnergies.append(energyList[j])     # append corresponding edge energy
@@ -461,6 +467,7 @@ def getE0(e):
     return result
 
 
+@memoize
 def getAverage(goodPixels, det):
     """Compute the average of all weighted, deadtime corrected spectra
     (from det[i].weightedSpec, which is = det[i].roiCorr * det[i].weightFactor)
