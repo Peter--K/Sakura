@@ -33,6 +33,7 @@ import get_netcdf as gnc
 import readMDA
 
 
+
 class Results(object):
     """An empty container to hold averaged data; used to store
     data while processing multiple files and to be filled in the
@@ -51,8 +52,8 @@ class MainFrame(wx.Frame):
         # build widget/GUI architecture using sizers
         wx.Frame.__init__(self, parent, id=wx.ID_ANY,
                           title=u"-- SAKURA --", pos=wx.DefaultPosition,
-                          size=wx.Size(1250, 780),
-                          ##size = wx.Size( 2000,1200 ),
+                          ##size=wx.Size(1250, 780),
+                          size = wx.Size( 2000,1200 ),
                           style=wx.HSCROLL | wx.VSCROLL | wx.TAB_TRAVERSAL |
                                 wx.DEFAULT_FRAME_STYLE |
                                 wx.FULL_REPAINT_ON_RESIZE )
@@ -244,7 +245,7 @@ class MainFrame(wx.Frame):
         #    wx.Size( 50, -1 ), 0 )
         #bSizer_SglsButtons.Add( self.m_buttonMu, 0, wx.BOTTOM|wx.TOP, 5 )
         #self.m_buttonChi = wx.Button( self, wx.ID_ANY, u"Chi(k)", wx.DefaultPosition,
-        #    wx.Size( 50, -1 ), 0 )
+        #   wx.Size( 50, -1 ), 0 )
         #bSizer_SglsButtons.Add( self.m_buttonChi, 0, wx.BOTTOM|wx.TOP, 5 )
         self.m_toggleBtn_MuChi = wx.ToggleButton(
             self, wx.ID_ANY, u"chi(k)", wx.DefaultPosition, wx.DefaultSize, 0)
@@ -558,6 +559,7 @@ class MainFrame(wx.Frame):
         #   (users can choose via radio buttons what to display in Det2 pixels)
         self.correls = gmda.getCorrels(self.det, self.goodPixels)
         self.colourPixels(2, self.correls, self.goodPixels, scale=False)
+        self.m_radioBtn_Correl.SetValue(True)
         # END of Correclation
 
         # Total Countrates (averaged):
@@ -587,6 +589,7 @@ class MainFrame(wx.Frame):
         #   final average
         self.weights = gmda.getWeightFactors(
             self.det, self.e, self.e0, self.goodPixels)
+        
         gmda.applyWeights(self.det, self.goodPixels)
         # END of weight factors
 
@@ -894,13 +897,21 @@ class MainFrame(wx.Frame):
             linkedPixel.SetBackgroundColour('grey')
         elif self.results[self.specSelec].goodPixels[index] == -1:
             self.results[self.specSelec].goodPixels[index] = index
-            clickedPixel.SetBackgroundColour('blue')
-            linkedPixel.SetBackgroundColour('blue')
             # re-paint the pixels in the detector panels (because one was clicked on
             # again and is still grey)
             self.colourPixels(1, self.results[self.specSelec].ROIaverage,
                               self.results[self.specSelec].goodPixels, scale=True)
-            # TODO:  self.colourPixels(2, self.DEPENDSonRADIObutton, self.goodPixels, scale=RADIObutton***)
+        if self.m_radioBtn_DetInt.GetValue() == True :
+            updateWhat = self.results[self.specSelec].TCRaverage
+            scaleHow = True
+        elif self.m_radioBtn_Correl.GetValue() == True :
+            updateWhat = self.results[self.specSelec].correls
+            scaleHow = False
+        elif self.m_radioBtn_Weights.GetValue() == True :
+            updateWhat = self.results[self.specSelec].weights
+            scaleHow = False
+        self.colourPixels(2,updateWhat, self.results[self.specSelec].goodPixels, scale = scaleHow)
+
 
         # Since a pixel was included/excluded, the average mu & chi will have changed;
         # re-compute now ("getAverage()" returns a list of arrays, i.e. [averageMu, averageChi])
@@ -992,7 +1003,6 @@ class MainFrame(wx.Frame):
                 xlabel = 'E  /  eV'
                 ylabel = 'mu(E)*d  /  a.u.'
             # send to second plot panel canvas used to display single detector channels
-            ##destination = wx.FindWindowById(self.panel_ids[1])
             destination = self.canvasSingleSpectra[1]
             canvasID = self.plotSpectrum(x, y, xlabel, ylabel, destination,
                                          self.results[self.specSelec].averageMu)
@@ -1054,16 +1064,18 @@ class MainFrame(wx.Frame):
                 y = self.results[self.specSelec].det[index].chi
                 xlabel = 'k  /  A^-1'
                 ylabel = 'chi(k)  /  a.u.'
+                moreY = self.results[self.specSelec].averageChi
             else:
                 x = self.e
                 y = np.reshape(self.det[index].roiCorr, self.scanSize)
                 xlabel = 'E  /  eV'
                 ylabel = 'mu(E)*d  /  a.u.'
+                moreY = self.results[self.specSelec].averageMu
 
             # send plot to canvas in corresponding panel
             ##destination = wx.FindWindowById(self.panel_ids[0])
             destination = self.canvasSingleSpectra[0]
-            canvasID = self.plotSpectrum(x, y, xlabel, ylabel, destination)
+            canvasID = self.plotSpectrum(x, y, xlabel, ylabel, destination, moreY)
             self.canvasID_enteredSingleSpec = canvasID
 
         # lastly, write the index of the pixel entered into an attribute
@@ -1136,10 +1148,11 @@ class MainFrame(wx.Frame):
                 wx.FindWindowById(self.canvasID_enteredSingleSpec).Clear()
                 y = self.results[self.specSelec].det[
                     self.index_lastPixelEntered].chi
+                moreY = self.results[self.specSelec].averageChi
                 ##destination = wx.FindWindowById(self.panel_ids[0])
                 destination = self.canvasSingleSpectra[0]
                 temp = self.plotSpectrum(self.results[self.specSelec].k, y,
-                                         'k  /  A^-1', 'chi(k)  /  a.u.', destination)
+                                         'k  /  A^-1', 'chi(k)  /  a.u.', destination, moreY)
 
             # again, only do an action if not "forever bad (='-2')"
             if (self.results[self.specSelec].goodPixels[self.index_lastPixelLeftClicked]
@@ -1147,9 +1160,10 @@ class MainFrame(wx.Frame):
                 wx.FindWindowById(self.canvasID_selectedSingleSpec).Clear
                 # destination = wx.FindWindowById(self.panel_ids[1])
                 y = self.results[self.specSelec].det[self.index_lastPixelLeftClicked].chi
+                moreY = self.results[self.specSelec].averageChi
                 destination = self.canvasSingleSpectra[1]
                 temp = self.plotSpectrum(self.results[self.specSelec].k, y,
-                                         'k  /  A^-1', 'chi(k)  /  a.u.', destination)
+                                         'k  /  A^-1', 'chi(k)  /  a.u.', destination, moreY)
 
         elif self.m_toggleBtn_MuChi.GetValue() == False:
             # switch label to read "chi(k)"...
@@ -1162,10 +1176,11 @@ class MainFrame(wx.Frame):
                 wx.FindWindowById(self.canvasID_enteredSingleSpec).Clear()
                 y = self.results[self.specSelec].det[
                     self.index_lastPixelEntered].roiCorr
+                moreY = self.results[self.specSelec].averageMu
                 ##destination = wx.FindWindowById(self.panel_ids[0])
                 destination = self.canvasSingleSpectra[0]
                 temp = self.plotSpectrum(self.results[self.specSelec].e, y,
-                                         'E  /  eV', 'mu(E)*d  /  a.u.', destination)
+                                         'E  /  eV', 'mu(E)*d  /  a.u.', destination, moreY)
 
             # again, only action if not "forever bad (='-2')"
             if self.goodPixels[self.index_lastPixelLeftClicked] >= -1:
@@ -1174,10 +1189,11 @@ class MainFrame(wx.Frame):
                     self.results[self.specSelec].det[
                         self.index_lastPixelLeftClicked].roiCorr,
                     self.scanSize)
+                moreY = self.results[self.specSelec].averageMu
                 ##destination = wx.FindWindowById(self.panel_ids[1])
                 destination = self.canvasSingleSpectra[1]
                 temp = self.plotSpectrum(self.results[self.specSelec].e, y,
-                                         'E  /  eV', 'mu(E)*d  /  a.u.', destination)
+                                         'E  /  eV', 'mu(E)*d  /  a.u.', destination, moreY)
 
         # Spectrum Select Spin Control (in display area)
         #
