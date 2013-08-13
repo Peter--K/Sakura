@@ -11,12 +11,10 @@ from utils import memoize
 from collections import defaultdict
 
 
-# This module supports three netCDF file readers; scipy.io.netcdf_file,
-# pupynere.netcdf_file and netCDF4.Dataset and prefers them in that order.
+# This module supports two netCDF file readers; scipy.io.netcdf_file and
+# pupynere.netcdf_file and prefers them in that order.
 # scipy.io.netcdf_file is based on pupynere.netcdf_file and is more likely to
-# be installed. scipy.io.netcdf_file and pupynere.netcdf_file are both much
-# faster than netCDF4 and are pure-Python modules, so they are preferred here.
-# Note that the data endianness is treated differently by netCDF4.
+# be installed. scipy.io.netcdf_file and pupynere.netcdf_file are pure-Python modules.
 NETCDF_READER = None
 uint16 = '>u2'
 uint32 = '>u4'
@@ -29,31 +27,9 @@ except:
         NETCDF_READER = 'pupynere'
     except:
         print 'no netCDF reader found'
-#print NETCDF_READER
 
 
 CHANNELS_PER_MODULE = 4
-
-
-# Buffer header defn see DXP-XMAP/xManager User Manual section 5.3.3.2
-buffer_header_dtype = ([
-    ('tag0'           , uint16 ),  # 0x55AA
-    ('tag1'           , uint16 ),  # 0xAA55
-    ('header_size'    , uint16 ),  # Buffer header size=256
-    ('mapping_mode'   , uint16 ),  # Mapping mode (1=Full spectrum, 2=Multiple ROI, 3=List mode)
-    ('run_number'     , uint16 ),
-    ('buffer_number'  , uint32 ),  # Sequential buffer number, low word first
-    ('buffer_id'      , uint16 ),  # 0=A, 1=B
-    ('num_pixels'     , uint16 ),  # Number of pixels in buffer
-    ('starting_pixel' , uint32 ),  # Starting pixel number, low word first
-    ('module_number'  , uint16 ),
-    ('channel_id'     , uint16, (4,2) ),
-    ('channel_size'   , uint16, 4 ),   # Channel sizes: channel 0..3
-    ('buffer_errors'  , uint16 ),
-    ('reserved1'      , uint16, 31-25+1 ),
-    ('user_defined'   , uint16, 63-32+1 ),
-    ('reserved2'      , uint16, 255-64+1 ),
-])
 
 
 # Pixel header defn for mapping mode 1: Full Spectrum Mapping.
@@ -134,6 +110,23 @@ def show_header_content(header):
         print "{}: {}: {}".format(t, type(item), item)
 
 
+class DataCache(dict):
+    """The module_data_cache implements a lazy read system for reading all data from
+    specific files. Attempting to read data for a (step, row, col) triple looks in
+    module_data_cache. A cache hit causes data to be read from the module_data and
+    channel specified:
+    {(step, row, col): [module_data object reference, 0-3], ... }
+
+    """
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __missing__(self, key):
+        lookup = self.fn(key)
+        self[key] = lookup
+        return lookup
+
+
 class DetectorData(object):
     """A container for accessing matching netCDF files corresponding to the XAS
     multi-element detector.
@@ -145,7 +138,7 @@ class DetectorData(object):
         Keyword arguments:
         shape - tuple (rows, cols) of detector shape rows and cols.
         pixelsteps_per_buffer - Mapping Pixels Per Buffer setting.
-        buffers_per_file - no. of buffers per netCDF file.
+        buffers_per_file - no. of buffers per group of p netCDF files.
         dirpaths - a filepath string or a list of filepath strings to the files.
         filepattern - a filename regex template whose capture group
                       is used to associate results across multiple files
@@ -168,42 +161,23 @@ class DetectorData(object):
         self.dirpaths = dirpaths
         self.filepattern = filepattern
         self.first_file_n = first_file_n
-        self.file_paths_dict = self._get_file_paths_for_all_pixel_steps()
+        self.file_paths_dict = self._get_all_file_groups()
+        self.files_indexed_by_pixel_step = self._get_file_paths_for_all_pixel_steps()
+        self.reverse_lookup_file_paths_dict = self._build_reverse_file_lookup(
+            self.files_indexed_by_pixel_step)
+        # Create data cache to implement single-file reading on any data access
+        self.module_data_cache = DataCache(self._default_cache_entry_factory)
 
-    @staticmethod
-    def _matching_n(files, pattern, n):
-        """Return all netCDF filenames in the files list whose regex capture group
-        matches the specified value of n.
-
-        Keyword arguments:
-        files - a list of filenames.
-        pattern - a regex containing one capture group, used to match the number OR
-                  a string used to directly match a filename in files.
-        n - the number used to match the file.
-
-        Returns:
-        A list of filename strings.
-
-        """
-        if pattern in files:
-            return [pattern]
-        else:
-            prog = re.compile(pattern)
-            re_matches = [(prog.match(f), f) for f in files if prog.match(f)]
-            filenames = [m[1] for m in re_matches if int(m[0].group(1)) == n]
-            return filenames
-
-    def _get_file_paths_for_all_pixel_steps(self):
+    def _get_all_file_groups(self):
         """Get the paths to netCDF files on disk corresponding to all available
-        pixel_steps, sorted based on filename.
+        file indices, sorted based on filename.
 
         Returns:
-        a dictionary keyed by pixel step with values containing a sorted list of full
-        paths to files for that step. Sorting is based on the filename only without the
-        path info.
+        a dictionary keyed by filepattern regex capture group value containing a sorted
+        list of full paths to files for that value. Sorting is based on the filename only
+        without the path info.
 
         """
-        regex = self.filepattern
         # get a list of all files with full paths 
         allfiles = []
         for d in self.dirpaths:
@@ -211,10 +185,10 @@ class DetectorData(object):
             paths = [os.path.join(d, f) for f in files]
             allfiles.extend(paths)
 
-        # now create a dict with keys matching the capture group value and values a list
-        # of all matching files
-        prog = re.compile(regex)
-        files = {os.path.basename(f): f for f in allfiles}
+        # now create a dict containing lists of all matching files (with full path) with
+        # keys matching the capture group value
+        prog = re.compile(self.filepattern)
+        files = {os.path.basename(f): f for f in allfiles}  # a lookup of paths from files
         pathsdict = defaultdict(list)
         for f in files:
             if prog.match(f):
@@ -226,6 +200,57 @@ class DetectorData(object):
 
         return pathsdict
 
+    def _get_file_paths_for_all_pixel_steps(self):
+        """Get the paths to netCDF files on disk corresponding to all available
+        pixel_steps, sorted based on filename.
+
+        Returns:
+        a dictionary keyed by pixel step with values containing a sorted list of full
+         paths to files for that step. Sorting is based on the filename only
+        without the path info.
+
+        """
+        p = 0
+        pathsdict = {}
+        while True:
+            pathsdict[p] = self._get_file_paths_for_pixel_step(p)
+            if pathsdict[p]:
+                # got back some paths
+                p += 1
+            else:
+                # got back an empty list, i.e. a cache miss
+                del pathsdict[p]
+                break
+
+        return pathsdict
+
+    def _build_reverse_file_lookup(self, d):
+        """Builds a dictionary of pixel_steps keyed by the corresponding file basename.
+        e.g. an arbitrary example of an entry might be 'ioc53_10.nc':[24,25,26]
+        Note, this doesn't tell you which detector elements are contained in that file,
+        so for example, there might also be another entry 'ioc54_10.nc':[24,25,26] if
+        there are multiple IOCs.
+
+        Keyword arguments:
+        d - dictionary returned by _get_file_paths_for_all_pixel_steps()
+
+        Returns:
+        Dictionary of keys equal to file basenames and value entries a list of
+        contained pixel_steps in numerically increasing order.
+        e.g. {'ioc53_1.nc':[0,1], 'ioc54_1.nc':[0,1],
+              'ioc53_2.nc':[2,3], 'ioc54_2.nc':[2,3], ...}
+
+        """
+        stepdict = defaultdict(list)
+        for key, val in d.iteritems():
+            for name in val:
+                stepdict[os.path.basename(name)].append(key)
+
+        # now sort all the lists numerically
+        for i in stepdict:
+            stepdict[i].sort()
+
+        return stepdict
 
     @memoize
     def _get_file_paths_for_pixel_step(self, pixel_step):
@@ -240,25 +265,8 @@ class DetectorData(object):
         list of full paths to files for the specified pixel_step.
 
         """
-        '''
-        regex = self.filepattern
-        file_n = self.first_file_n + pixel_step // self.buffers_per_file
-        # make a list of tuples: (path, [list of matching files])
-        filepaths = [(path, DetectorData._matching_n(os.listdir(path), regex,
-                                                     file_n)) for path in self.dirpaths]
-        # reassemble full paths to matching files but keep filename for sorting
-        unsortedpaths = [(f, os.path.join(path, f))
-                         for path, filenames in filepaths for f in filenames]
-        if not unsortedpaths:
-            raise IndexError
-        # sort based on filename ignoring path
-        sortedpaths = sorted(unsortedpaths, key=lambda x: x[0])
-        # finally just keep the full paths, now sorted based on filename
-        paths = [p[1] for p in sortedpaths]
-        assert self.file_paths_dict[file_n] == paths
-        return paths
-        '''
-        file_n = self.first_file_n + pixel_step // self.buffers_per_file
+        file_n = self.first_file_n + pixel_step // (
+            self.pixelsteps_per_buffer * self.buffers_per_file)
         return self.file_paths_dict[file_n]
 
     @memoize
@@ -300,23 +308,90 @@ class DetectorData(object):
 
         return path, buffer_ix, module_ix, channel
 
-    def _get_buffer_header(self, f, buffer_ix, module_ix):
-        """Return the buffer header of the buffer indexed by buffer_ix, module_ix
+    def _enumerate_all_data_indices_in_file(self, filename):
+        """Given a filename, returns a list of tuples
+        (pixel_step, row, col, channel, buffer_ix, module_ix)
+        for indexing the file contents.
 
         Keyword arguments:
-        f - netCDF file handle
-        buffer_ix - 0-based int referring to buffer contained in netCDF file.
-        module_ix - 0 -> max_module-1 for the current file.
+        filename - string e.g. 'ioc53_1.nc'
 
         Returns:
-        An ndarray view with dtype=buffer_header_dtype
+        A list of all 6-tuples (pixel_step, row, col, channel, buffer_ix, module_ix)
+        enumerating the contents, where:
+            pixel_step, row, col - detector element indices
+            channel - 0-3
+            buffer_ix - 0-based int referring to buffer contained in netCDF file.
+            module_ix - 0 -> max_module-1 for the current file.
 
         """
-        array_data = f.variables['array_data']
-        module_data = array_data[buffer_ix, module_ix, :]
-        data = module_data[0: 256]      # read buffer header
-        buffer_header = data.view(buffer_header_dtype)
-        return buffer_header
+        # pixel step range for this file
+        pixel_steps = self.reverse_lookup_file_paths_dict[filename]
+        # get element range for this file, e.g. 0, 51 (first 52 of 100-element detector)
+        p = len(self.file_paths_dict[self.first_file_n])
+        m = self.rows * self.cols / CHANNELS_PER_MODULE
+        modules_per_file = int(np.ceil(float(m) / p))
+
+        # now we have modules_per_file, get the file index so we can determine the
+        # element range
+        files_for_this_step = self._get_file_paths_for_pixel_step(pixel_steps[0])
+        files_for_this_step = [os.path.basename(f) for f in files_for_this_step]
+        file_index = files_for_this_step.index(filename)
+
+        # if e.g. file_index==n, range is
+        # n*elements_in_file -> (n+1)*elements_in_file-1.
+        elements_per_file = modules_per_file * CHANNELS_PER_MODULE
+        low_element = file_index * elements_per_file
+        # The last file in a group may contain fewer elements.
+        if files_for_this_step[-1] == filename:
+            high_element_plus1 = self.rows * self.cols
+        else: 
+            high_element_plus1 = (file_index + 1) * elements_per_file
+
+        # Now collect the tuples
+        indices = []
+        for pixel_step in pixel_steps:
+            for el in range(low_element, high_element_plus1):
+                row, col = divmod(el, self.cols)
+
+                # Get module index from element index
+                module_ix, channel = divmod(row * self.rows + col, CHANNELS_PER_MODULE)
+
+                # Now get the file and module index within that file by assuming the
+                # modules are split evenly across the IOCs and are in increasing
+                # sequential order
+                module_ix = module_ix % modules_per_file
+                buffer_ix = pixel_step % self.pixelsteps_per_buffer
+                indices.append( (pixel_step, row, col, channel, buffer_ix, module_ix) )
+
+        return indices
+
+    def _default_cache_entry_factory(self, key):
+        """Called on a DataCache access __missing__() call.
+        Gets all (step, row, col) entries for the file indexed by key and reads all data
+        returning the entry for the requested key
+
+        Arguments:
+        key - (pixel_step, row, col) tuple
+
+        """
+        # A cache miss will generate a file lookup, read and cache of the associated data.
+        path, _, _, _ = self._get_data_location(*key)   # path of file containing our data
+
+        # Generate all the entries like the following for data in the file path
+        # {(step, row, col): [module_data object reference, 0-3], ... }
+        # First, enumerate data indices in current file.
+        indices = self._enumerate_all_data_indices_in_file(os.path.basename(path))
+
+        # OK, now read everything from the file
+        f = netcdf_file(path, 'r')
+        # buffer_ix, module_ix
+        for pixel_step, row, col, channel, buffer_ix, module_ix in indices:
+            self.module_data_cache[(pixel_step, row, col)] = \
+                [self._get_mode1_pixel_data(f, buffer_ix, module_ix), channel]
+        f.close()
+
+        return self.module_data_cache[key]
 
     def _uint32_swap_words(self, item_array):
         """Deal with 32-bit uint32 items properly turning them into numpy np.uint32 values
@@ -346,96 +421,6 @@ class DetectorData(object):
         dynamic_data = data.view(pixel_header_mode1_static_fixedbins_dtype(self.mca_bins))
         return dynamic_data
 
-    @memoize
-    def _get_mode1_pixel_data_by_path(self, path, buffer_ix, module_ix):
-        """By separating this out, we can cache the results, ensuring only one file read
-        for multiple data reads from a pixel block
-        """
-        f = netcdf_file(path, 'r')
-        dynamic_data = self._get_mode1_pixel_data(f, buffer_ix, module_ix)
-        f.close()
-        return dynamic_data
-
-    def _get_fixedbins_spectrum(self, path, buffer_ix, module_ix, channel):
-        """Return the spectrum array indexed by the buffer_ix, module_ix, and channel
-        indices. This assumes that MCAs are all equal in length = self.mca_bins.
-
-        Keyword arguments:
-        path - netCDF file path
-        buffer_ix - 0-based int referring to buffer contained in netCDF file.
-        module_ix - 0 -> max_module-1 for the current file.
-        channel - 0-3
-
-        Returns:
-        An ndarray with self.mca_bins uint16-words
-
-        """
-        data = self._get_mode1_pixel_data_by_path(path, buffer_ix, module_ix)
-        return data['ch{}_spectrum'.format(channel)][0]
-
-    def _get_statistic(self, path, buffer_ix, module_ix, channel, metric):
-        """Return the channel statistic specified by metric from the pixel data
-        indexed by the buffer_ix, module_ix, and channel indices.
-        This assumes that MCAs are all equal in length = self.mca_bins.
-
-        Keyword arguments:
-        path - netCDF file path
-        buffer_ix - 0-based int referring to buffer contained in netCDF file.
-        module_ix - 0 -> max_module-1 for the current file.
-        channel - 0-3
-        metric - one of 'realtime', 'livetime', 'triggers', 'output_events'
-
-        Returns:
-        uint32 containing the metric
-
-        """
-        data = self._get_mode1_pixel_data_by_path(path, buffer_ix, module_ix)
-
-        assert metric in ['realtime', 'livetime', 'triggers', 'output_events']
-        item_array = self._uint32_swap_words(data['ch{}_{}'.format(channel, metric)])
-        return item_array[0]
-
-    def _get_pixel_header_mode1_item(self, path, buffer_ix, module_ix, item):
-        """Return the specified item from the pixel header indexed by the
-        buffer_ix and module_ix indices.
-        This assumes that MCAs are all equal in length = self.mca_bins.
-
-        Keyword arguments:
-        path - netCDF file path
-        buffer_ix - 0-based int referring to buffer contained in netCDF file.
-        module_ix - 0 -> max_module-1 for the current file.
-        item - e.g. 'total_pixel_block_size'
-
-        Returns:
-        uint16 or uint32 (item dependent)
-
-        """
-        data = self._get_mode1_pixel_data_by_path(path, buffer_ix, module_ix)
-        item_array = self._uint32_swap_words(data[item])
-        return item_array[0]
-
-    def _get_buffer_header_item(self, path, buffer_ix, module_ix, item):
-        """Return the specified item from the buffer header indexed by the
-        buffer_ix and module_ix indices.
-        This assumes that MCAs are all equal in length = self.mca_bins.
-
-        Keyword arguments:
-        path - netCDF file path
-        buffer_ix - 0-based int referring to buffer contained in netCDF file.
-        module_ix - 0 -> max_module-1 for the current file.
-        item - e.g. 'buffer_number'
-
-        Returns:
-        uint16 or uint32 (item dependent)
-
-        """
-        f = netcdf_file(path, 'r')
-        buffer_header = self._get_buffer_header(f, buffer_ix, module_ix)
-        f.close()
-
-        item_array = self._uint32_swap_words(buffer_header[item])
-        return item_array[0]
-
     def spectrum(self, pixel_step, row, col):
         """Return the spectrum array indexed by pixel_step, row, col.
 
@@ -447,8 +432,11 @@ class DetectorData(object):
         An ndarray with self.mca_bins uint16-words
 
         """
-        location_indices = self._get_data_location(pixel_step, row, col)
-        return self._get_fixedbins_spectrum(*location_indices)
+        # retrieve item - we get a [buffer, channel] list
+        data, channel = self.module_data_cache[(pixel_step, row, col)]
+        # now extract what we're after
+        item_array = data['ch{}_spectrum'.format(channel)]
+        return item_array[0]
 
     def statistic(self, pixel_step, row, col, metric):
         """Return the fast_peaks etc. values indexed by pixel_step, row, col.
@@ -462,90 +450,62 @@ class DetectorData(object):
         uint32 containing the metric
 
         """
-        path, buffer_ix, module_ix, channel = self._get_data_location(
-            pixel_step, row, col)
-        result = self._get_statistic(path, buffer_ix, module_ix, channel, metric)
-        return result
+        # retrieve item - we get a [buffer, channel] list
+        data, channel = self.module_data_cache[(pixel_step, row, col)]
+        assert metric in ['realtime', 'livetime', 'triggers', 'output_events']
+        # now extract what we're after
+        item_array = self._uint32_swap_words(data['ch{}_{}'.format(channel, metric)])
+        return item_array[0]
 
-    def buffer_header_item(self, pixel_step, row, col, item, check_validity=True):
-        """Return a header item from the buffer_header indexed by pixel_step, row, col
-
+    def pixel_header_mode1_item(self, pixel_step, row, col, item, check_validity=True):
+        """Return a header item from the pixel_header indexed by pixel_step, row, col
+ 
         Keyword arguments:
         check_validity - Set False to skip check for item
         pixel_step - 0-based index to "pixel" step, i.e. mono position
         row, col - detector element row and column
         item - e.g. 'total_pixel_block_size'
-
+ 
         Returns:
         uint16 or uint32 (item dependent)
-
+ 
         """
         if check_validity:
             # Check item validity
-            keys = [i[0] for i in buffer_header_dtype]
+            keys = [i[0] for i in pixel_header_mode1_static_fixedbins_dtype(self.mca_bins)]
             assert item in keys
+ 
+        # retrieve item - we get a [buffer, channel] list
+        data, _ = self.module_data_cache[(pixel_step, row, col)]
+        # now extract what we're after
+        item_array = data[item]
+        return item_array[0]
 
-        # retrieve item
-        path, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
-        result = self._get_buffer_header_item(path, buffer_ix, module_ix, item)
-        return result
-
-    def pixel_header_mode1_item(self, pixel_step, row, col, item, check_validity=True):
+    def pixel_header_mode1_channel_item(self, pixel_step, row, col, item,
+                                        check_validity=True):
         """Return a header item from the pixel_header indexed by pixel_step, row, col
 
         Keyword arguments:
         check_validity - Set False to skip check for item
         pixel_step - 0-based index to "pixel" step, i.e. mono position
         row, col - detector element row and column
-        item - e.g. 'total_pixel_block_size'
+        item - e.g. 'realtime'
 
         Returns:
         uint16 or uint32 (item dependent)
 
         """
+        # retrieve item - we get a [buffer, channel] list
+        data, channel = self.module_data_cache[(pixel_step, row, col)]
+        # now extract what we're after
+        item = 'ch{}_{}'.format(channel, item)
         if check_validity:
             # Check item validity
-            keys = [i[0]
-                for i in pixel_header_mode1_static_fixedbins_dtype(self.mca_bins)]
+            keys = [i[0] for i in pixel_header_mode1_static_fixedbins_dtype(self.mca_bins)]
             assert item in keys
 
-        # retrieve item
-        path, buffer_ix, module_ix, _ = self._get_data_location(pixel_step, row, col)
-        result = self._get_pixel_header_mode1_item(path, buffer_ix, module_ix, item)
-
-        return result
-
+        item_array = data[item]
+        return item_array[0]
 
 if __name__ == '__main__':
-    #from profilehooks import profile
-
-    #@profile(entries=None, immediate=True)
-    def read_detector_data(detector_data, pixel_step):
-        data = detector_data.spectrum(0, 0, 0)
-
-    #@profile(entries=None, immediate=True)
-    def read_detector_data_all(detector_data, pixel_step):
-        for row in range(10):
-            for col in range(10):
-                data = detector_data.spectrum(pixel_step, row, col)
-
-    # read data from paired files
-    BASE_DIR = r'C:\Users\gary\VeRSI\NeCTAR_AS_XAS\test_data\2013-04-22_mapping_mode_collected\mnt\win'
-    FILE1_DIR = os.path.join(BASE_DIR, r'ele100_1\out_1366616251')
-    FILE2_DIR = os.path.join(BASE_DIR, r'ele100_2\out_1366616251')
-    detector_data = DetectorData(
-        shape=(10, 10), pixelsteps_per_buffer=4, buffers_per_file=5,
-        dirpaths=(FILE1_DIR, FILE2_DIR), filepattern='ioc5[3-4]_([0-9]*)\.nc',
-        mca_bins=2048, first_file_n=1)
-    pixel_step = 5
-    read_detector_data(detector_data, pixel_step)
-    read_detector_data_all(detector_data, pixel_step)
-
-    # read data from individual files
-    FILE_DIR = r'C:\Users\gary\VeRSI\NeCTAR_AS_XAS\3rd_party_sw\asxas IDL\data\XAS_Example_Data'
-    detector_data = DetectorData(
-        shape=(10, 10), pixelsteps_per_buffer=1, buffers_per_file=1,
-        dirpaths=FILE_DIR, filepattern='Cdstandard94test1_([0-9]*)',
-        mca_bins=2048, first_file_n=1)
-    pixel_step = 44
-    read_detector_data_all(detector_data, pixel_step)
+    pass

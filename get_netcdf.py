@@ -45,9 +45,6 @@ class Pixel(object):
     def pixel_header_mode1_item(self, *args, **kwargs):
         return self.detector_data.pixel_header_mode1_item(*args, **kwargs)
 
-    def buffer_header_item(self, *args, **kwargs):
-        return self.detector_data.buffer_header_item(*args, **kwargs)
-
     def _GetSpectrumROI(self, pixel_step, low, high):
         """ low and high are semi-open range indices
         """
