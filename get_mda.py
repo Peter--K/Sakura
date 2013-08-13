@@ -321,17 +321,26 @@ def getWeightFactors(det, e, e0, goodPixels):
     #   and have one array returned into "self.weights"
     weights = np.zeros(len(det))
 
-    # use E0 + 100eV to define start of fit range
+    # use E0 + XXX eV to define start of fit range (depending on length of scan)
     #   end of fit range is simply end of scan (last index of "e")
-    # use E0 - 10eV to get average background intensity in range [0 ; E0-100]eV
+    # use E0 - 10eV to do pre-edge fit in range [0 ; E0-10]eV
     e0Index = np.argmin(np.abs(e - e0))
     print 'E0 index = ', e0Index
     startIndexPre = 0
     stopIndexPre = np.argmin(np.abs(e - (e0 - 10)))
-    startIndexPost = np.argmin(np.abs(e - (e0 + 50)))
-    stopIndexPost = len(e) - 1
+    if max(e)-e0 > 100 :
+        startIndexPost = np.argmin(np.abs(e - (e0 + 50)))
+    elif max(e)-e0 < 70 :
+        startIndexPost = np.argmin(np.abs(e - (e0 + 15)))
+    else :
+        startIndexPost = np.argmin(np.abs(e - (e0 + 25)))
     startIndexK = np.argmin(np.abs(e - (e0 + 15)))
+    stopIndexPost = len(e) - 1
 
+    print 'E - E0 =', max(e)-e0    
+    print 'start post = ', e[startIndexPost]
+    print 'stop post  = ', e[stopIndexPost]
+    
     # first, set all weight factors to zero (user/mouse events may access weight factors
     #   in the GUI, so need at least something)
     for i in range(len(det)):
@@ -378,7 +387,7 @@ def getWeightFactors(det, e, e0, goodPixels):
     for i in goodPixels:
         det[i].weightFactor = weights[i]
 
-    return weights
+    return weights ####, preEdgeCurve, postEdgeCurve
 
 
 def applyWeights(det, goodPixels):
@@ -393,7 +402,6 @@ def applyWeights(det, goodPixels):
         det[i].WeightSpectrum()
 
 
-@memoize
 def getCorrels(det, goodPixels):
     """Compute spectra correlation coefficients (using Pearsons Correlation)
 
@@ -467,10 +475,9 @@ def getE0(e):
     return result
 
 
-@memoize
 def getAverage(goodPixels, det):
     """Compute the average of all weighted, deadtime corrected spectra
-    (from det[i].weightedSpec, which is = det[i].roiCorr * det[i].weightFactor)
+    from det[i].weightedSpec ( which is = det[i].roiCorr * det[i].weightFactor)
 
     This creates class attributes "self.averageMu" "[...]Chi"
 
@@ -479,7 +486,7 @@ def getAverage(goodPixels, det):
     #    thus, needs compressing out all indices <0 first before using in a loop
     goodPixels = np.compress(goodPixels >= 0, goodPixels)
 
-    scanSize = len(det[0].fpeaks)   # choose random pixel array to determine scan length
+    scanSize = len(det[0].fpeaks)   # choose a random pixel array to determine scan length
     averageMu = np.zeros(scanSize)
     averageChi = np.zeros(len(det[goodPixels[0]].chi))
     for i in goodPixels:
