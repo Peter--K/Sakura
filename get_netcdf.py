@@ -58,29 +58,30 @@ class Pixel(object):
 
     @memoize
     def _roi(self, roi_low, roi_high):
-        return np.array([self._GetSpectrumROI(step, roi_low, roi_high).sum()
+        data = np.array([self._GetSpectrumROI(step, roi_low, roi_high).sum()
                          for step in self.detector.steprange])
+        data /= self.detector.ts
+        return data
+
     @property
     @memoize
     def fpeaks(self):
-        return np.array([self.statistic(step, self.row, self.col, 'realtime')
+        data = np.array([self.statistic(step, self.row, self.col, 'realtime')
                         for step in self.detector.steprange])
+        data /= self.detector.ts
+        return data
 
     @property
     @memoize
     def speaks(self):
-        return np.array([self.statistic(step, self.row, self.col, 'livetime')
+        data = np.array([self.statistic(step, self.row, self.col, 'livetime')
                         for step in self.detector.steprange])
+        data /= self.detector.ts
+        return data
 
     @property
     def roi(self):
         return self._roi(self.detector.roi_low, self.detector.roi_high)
-
-#     def NormT(self, tsample) :
-#         # normalise all raw data (FastPeaks, SlowPeaks, ROI) to sampling time tsample
-#         self.fpeaks = np.divide(np.ndarray.flatten(self.fpeaks), tsample)
-#         self.speaks = np.divide(np.ndarray.flatten(self.speaks), tsample)
-#         self.roi = np.divide(np.ndarray.flatten(self.roi), tsample)
 
     def GetDead(self, fpeaks, speaks):
         # get detector dead time parameter "tau"
@@ -124,6 +125,7 @@ class Detector(list):
         # element objects keep a reference to this object so they can access these fields
         self.roi_low = None
         self.roi_high = None
+        self.ts = None
 
     # Implement __getitem__, __setitem__, __iter__ and __len__ methods to implement
     # list-like behaviour
@@ -154,6 +156,10 @@ class Detector(list):
         """Set the roi limits for the detector."""
         self.roi_low = low
         self.roi_high = high
+
+    def set_ts(self, ts):
+        """Set sample times for NormT correction."""
+        self.ts = ts
 
 
 def getExtraPV(mda_list, pv):
@@ -227,10 +233,8 @@ def getData(fname):
     scanSize = highest_available_scandata(detector, scanSize)
     detector.steprange = range(scanSize)
 
-    # TODO: get rid of the next 2 lines
+    # TODO: get rid of the next line
     detector.set_roi_limits(600, 800)   # start with this roi range
-#     scanSize = 20
-#     detector.steprange = range(129,158)      # start with first 10 energy points
 
     # read transmission data
     pvColumnNames = ['EncEnergy:ActPos', 'scaler1:S2C', 'scaler1:S3C',
@@ -247,6 +251,7 @@ def getData(fname):
             print 'missing PV ' + tag
 
     ts = trans[pvColumnNames.index('scaler1.T')]    # get the sample time
+    detector.set_ts(ts)
     e = trans[pvColumnNames.index('EncEnergy:ActPos')] * 1000.0  # Energy axis (in eV !!)
 
     # normalise I0, I1, I2 to sample_time ts (use string "scaler1:" as identifier)
