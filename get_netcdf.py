@@ -6,6 +6,8 @@ from xmap_netcdf_reader import DetectorData
 import readMDA
 
 from utils import memoize
+# Maybe use gocept's cache if I can bundle it easily
+# import gocept.cache.method
 
 #
 # set up a CLASS for detector pixels
@@ -38,7 +40,7 @@ class Pixel(object):
         """Call this class method to reset the pixel Id class variable"""
         Pixel.__pxId = 0
 
-    # expose the DetectorData spectrum(), statistic(), buffer_header_item() and
+    # expose the DetectorData spectrum(), statistic() and
     #    pixel_header_mode1_item() methods here
     def spectrum(self, *args, **kwargs):
         return self.detector_data.spectrum(*args, **kwargs)
@@ -56,6 +58,7 @@ class Pixel(object):
         spectrum = self.detector_data.spectrum(pixel_step, self.row, self.col)
         return spectrum[low:high]
 
+    # @gocept.cache.method.Memoize(10)
     @memoize
     def _roi(self, roi_low, roi_high):
         data = np.array([self._GetSpectrumROI(step, roi_low, roi_high).sum()
