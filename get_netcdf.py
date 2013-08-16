@@ -33,6 +33,11 @@ class Pixel(object):
         self.chi = None
         self.tau = None
 
+    @classmethod
+    def __reset_px_count__(self):
+        """Call this class method to reset the pixel Id class variable"""
+        Pixel.__pxId = 0
+
     # expose the DetectorData spectrum(), statistic(), buffer_header_item() and
     #    pixel_header_mode1_item() methods here
     def spectrum(self, *args, **kwargs):
@@ -106,11 +111,12 @@ class Detector(list):
 
     """
     def __init__(self, detector_data):
-        """detector is a DetectorData instance
+        """detector_data is a DetectorData instance
         """
         self.detector_data = detector_data
         self.rows, self.cols = detector_data.shape
         detector_size = self.rows * self.cols
+        Pixel.__reset_px_count__()
         self.det = [Pixel(self) for _ in range(detector_size)]
         self.steprange = None           # Holds an iterable containing the energy/mca/pixel-steps
         self.iter_pointer = 0

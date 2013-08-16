@@ -212,7 +212,6 @@ def getData(fname):
     return e, trans, det
 
 
-@memoize
 def getGoodPixels(det, detSize):
     """Check data from individual detector pixels for quality and
     remove any bad pixels from the list of pixels considered
@@ -302,7 +301,7 @@ def normaliseI0(det, goodPixels, i0):
         det[i].NormI0(i0)
 
 
-@memoize
+#@memoize
 def getWeightFactors(det, e, e0, goodPixels):
     """
     Run through all detector pixels and determine a weight factor

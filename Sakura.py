@@ -772,6 +772,9 @@ class MainFrame(wx.Frame):
         del self.weights, self.correls
         del self.trans, self.t, self.e, self.e0, self.i0, self.edges, self.scanSize
 
+        del self.goodPixels
+        del self.k
+
         # clear from memory all 'results' entries in 'results list'
         self.results = []
         self.whichProcessed = []
