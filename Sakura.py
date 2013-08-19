@@ -613,9 +613,6 @@ class MainFrame(wx.Frame):
     #
     ############################################
 
-#     from profilehooks import profile
-#     
-#     @profile(entries=None, immediate=True)
     def OnClick_Load(self, event):
         """Load/Save/etc buttons (in controls area)"""
         dialog = wx.FileDialog(
@@ -674,7 +671,6 @@ class MainFrame(wx.Frame):
             self.results[0].fname = self.fname
             self.results[0].goodPixels = self.goodPixels
             self.results[0].averageMu = self.averageMu
-            self.results[0].averageMu = self.averageMu
             self.results[0].averageChi = self.averageChi
             self.results[0].TCRaverage = self.TCRaverage
             self.results[0].ROIaverage = self.ROIaverage
@@ -692,18 +688,25 @@ class MainFrame(wx.Frame):
             self.specSelec = 0
 
             # now send processed data to plot window(s)
-            # 1. send averaged mu(E) to plot
+            # 1. send I0 to first plot window up the top
             canvasID = self.plotSpectrum(
-                self.results[0].e, self.results[0].averageMu,
+                self.results[0].e, self.results[0].trans[1], ##averageMu,
                 'E  /  eV', 'mu(E)*d  /  a.u.',
                 self.canvasMuAverage)
             self.canvasID_panelMuAverage = canvasID
 
-            # 2. send averaged chi(k)*k^2 to plot
-            canvasID = self.plotSpectrum(self.results[0].k,
-                                         self.results[0].averageChi
-                                         * np.square(self.results[0].k),
-                                         'k  /  A^-1', 'k^2 * chi(k)  /  a.u.',
+            ## 2. send averaged chi(k)*k^2 to plot
+            ##canvasID = self.plotSpectrum(self.results[0].k,
+            ##                             self.results[0].averageChi
+            ##                             * np.square(self.results[0].k),
+            # 2. send reference foil sepcturm to second plot window up the top
+            canvasID = self.plotSpectrum(self.results[0].e,
+                                         np.log(
+                                            self.results[0].trans[2] /
+                                            self.results[0].trans[3]
+                                            ),
+                                         'E  /  eV',
+                                         'reference:  -ln(I2/I1)  /  a.u.',
                                          self.canvasChiAverage)
             self.canvasID_panelChiAverage = canvasID
 
@@ -798,20 +801,43 @@ class MainFrame(wx.Frame):
 
         # get previously processed data from memory and:
         # 1. send averaged mu(E) to plot
-        canvasID = self.plotSpectrum(
-            self.results[self.specSelec].e, self.results[
-                self.specSelec].averageMu,
-            'E  /  eV', 'mu(E)*d  /  a.u.',
-            self.canvasMuAverage)
-        self.canvasID_panelMuAverage = canvasID
+        #canvasID = self.plotSpectrum(
+        #    self.results[self.specSelec].e, self.results[
+        #        self.specSelec].averageMu,
+        #    'E  /  eV', 'mu(E)*d  /  a.u.',
+        #    self.canvasMuAverage)
+        #self.canvasID_panelMuAverage = canvasID
 
         # 2. send averaged chi(k)*k^2 to plot
-        canvasID = self.plotSpectrum(self.results[self.specSelec].k,
-                                     self.results[self.specSelec].averageChi
-                                     * np.square(self.results[self.specSelec].k),
-                                     'k  /  A^-1', 'k^2 * chi(k)  /  a.u.',
+        #canvasID = self.plotSpectrum(self.results[self.specSelec].k,
+        #                             self.results[self.specSelec].averageChi
+        #                             * np.square(self.results[self.specSelec].k),
+        #                             'k  /  A^-1', 'k^2 * chi(k)  /  a.u.',
+        #                             self.canvasChiAverage)
+        #self.canvasID_panelChiAverage = canvasID
+
+        # get previously processed data from memory and:
+        # 1. send I0 to first plot up the top
+        canvasID = self.plotSpectrum(self.results[self.specSelec].e,
+                                     self.results[
+                                        self.specSelec].trans[1],
+                                     'E  /  eV', 'I0:   I  /  cts/sec',
+                                     self.canvasMuAverage)
+        self.canvasID_panelMuAverage = canvasID
+
+        # 2. send transmission data (reference foil) to plot
+        canvasID = self.plotSpectrum(self.results[self.specSelec].e,
+                                     np.log(
+                                        self.results[self.specSelec].trans[2] /
+                                        self.results[self.specSelec].trans[3]
+                                        ),
+                                     'E  / eV',
+                                     'reference:  -ln(I2/I1)  /  a.u.',
                                      self.canvasChiAverage)
         self.canvasID_panelChiAverage = canvasID
+
+
+
 
     def OnCheckList_SpecToggle(self, event):
         self.spectraChecked = self.m_checkList_Spectra.GetChecked()
@@ -932,20 +958,20 @@ class MainFrame(wx.Frame):
         self.results[self.specSelec].averageChi = averages[1]
 
         # Send averaged mu(E) to corrsponding plot canvas
-        temp = self.plotSpectrum(
-            self.results[self.specSelec].e, self.results[
-                self.specSelec].averageMu,
-            'E  /  eV', 'mu(E)*d  /  a.u.',
-            self.canvasMuAverage)
-            #self.m_panelMuAverage)
+        #temp = self.plotSpectrum(
+        #    self.results[self.specSelec].e, self.results[
+        #        self.specSelec].averageMu,
+        #    'E  /  eV', 'mu(E)*d  /  a.u.',
+        #    self.canvasMuAverage)
+        #    #self.m_panelMuAverage)
 
         # Send averaged chi(k) to corresponding plot canvas
         #self.k = self.det[0].k
-        temp = self.plotSpectrum(self.results[self.specSelec].k,
-                                 self.results[self.specSelec].averageChi
-                                 * np.square(self.results[self.specSelec].k),
-                                 'k  /  A^-1', 'chi(k)*k^2  /  a.u.',
-                                 self.canvasChiAverage)
+        #temp = self.plotSpectrum(self.results[self.specSelec].k,
+        #                         self.results[self.specSelec].averageChi
+        #                         * np.square(self.results[self.specSelec].k),
+        #                         'k  /  A^-1', 'chi(k)*k^2  /  a.u.',
+        #                         self.canvasChiAverage)
             #self.m_panelChiAverage)
 
         #currentColour = clickedPixel.GetBackgroundColour()
@@ -1078,7 +1104,7 @@ class MainFrame(wx.Frame):
                 moreY = self.results[self.specSelec].averageChi
             else:
                 x = self.e
-                y = np.reshape(self.det[index].roiCorr, self.scanSize)
+                y = np.reshape(self.det[index].roiCorrNorm, self.scanSize)
                 xlabel = 'E  /  eV'
                 ylabel = 'mu(E)*d  /  a.u.'
                 moreY = self.results[self.specSelec].averageMu

@@ -30,8 +30,6 @@ from scipy.stats.stats import pearsonr
 
 import edge_tables as etab
 
-from utils import memoize
-
 
 class pixel(object):
     """Class to describe a detector pixel and its 'contents'.
@@ -69,7 +67,7 @@ class pixel(object):
 
     def WeightSpectrum(self):
         """apply weight factor which was derived from relative edge step"""
-        self.weightedSpec = self.weightFactor * self.roiCorr
+        self.weightedSpec = self.weightFactor * self.roiCorrNorm
 
 
 def makeDet(detSize, scanSize):
@@ -301,7 +299,6 @@ def normaliseI0(det, goodPixels, i0):
         det[i].NormI0(i0)
 
 
-#@memoize
 def getWeightFactors(det, e, e0, goodPixels):
     """
     Run through all detector pixels and determine a weight factor
@@ -357,13 +354,13 @@ def getWeightFactors(det, e, e0, goodPixels):
     # module to the GUI "sakura[...].py"; this is not elegant, but it works
     det[0].k = k
     for i in goodPixels:
-        yPost = np.ndarray.flatten(det[i].roiCorr[startIndexPost:
+        yPost = np.ndarray.flatten(det[i].roiCorrNorm[startIndexPost:
                                    stopIndexPost])  # mu(E') above edge
         fitparams = polyfit(x, yPost, 2)
         postEdgeCurve = polyval(fitparams, e)
 
         # now fit the pre-edge using same algorithm
-        yPre = np.ndarray.flatten(det[i].roiCorr[startIndexPre:stopIndexPre])
+        yPre = np.ndarray.flatten(det[i].roiCorrNorm[startIndexPre:stopIndexPre])
         fitparams = polyfit(e[startIndexPre:stopIndexPre], yPre, 2)
         preEdgeCurve = polyval(fitparams, e)
         #preEdgeAverage = np.mean( det[i].roiCorr[startIndexPre:stopIndexPre] )
@@ -413,7 +410,6 @@ def getCorrels(det, goodPixels):
     goodPixels = np.compress(goodPixels >= 0, goodPixels)
 
     correls = np.zeros(len(det))
-
     for i in goodPixels:
         for j in goodPixels:
             correls[i] += pearsonr(det[i].roi, det[j].roi)[0]
@@ -575,7 +571,7 @@ def writeAverages(mdaOutName, goodPixels, correls,
     f.write('# Data: \n')
     f.write('# ----- \n')
     f.write('# \n')
-    f.write('# E[eV]    mu(E)_fluo_average/I0[a.u.]    I0[cts/sec]    I1[cts/sec]    ' +
+    f.write('# E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]    ' +
               'I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg] \n')
 
     output = []
