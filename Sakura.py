@@ -136,10 +136,10 @@ class MainFrame(wx.Frame):
         # first detector panel
         gSizer_Det1 = wx.GridSizer(10, 10, 0, 0)
         # TODO: find a way to get detSize here (hasn't been defined in this Class, yet)
-        self.pixel_ids1 = np.zeros(100, dtype=int)
+        self.pixel_ids1 = []
         for i in range(100):
             ID_PIXEL = wx.NewId()
-            self.pixel_ids1[i] = ID_PIXEL
+            self.pixel_ids1.append(ID_PIXEL)
             self.label = wx.StaticText(
                 self, ID_PIXEL, label=str(i + 1), size=(22, 22),
                 style=wx.ALIGN_CENTRE | wx.ST_NO_AUTORESIZE)
@@ -164,10 +164,10 @@ class MainFrame(wx.Frame):
         # second detector panel
         gSizer_Det2 = wx.GridSizer(10, 10, 0, 0)
         # TODO: find a way to get detSize here (hasn't been defined in this Class, yet)
-        self.pixel_ids2 = np.zeros(100, dtype=int)
+        self.pixel_ids2 = []
         for i in range(100):
             ID_PIXEL = wx.NewId()
-            self.pixel_ids2[i] = ID_PIXEL
+            self.pixel_ids2.append(ID_PIXEL)
             self.label = wx.StaticText(
                 self, ID_PIXEL, label=str(i + 1), size=(22, 22),
                 style=wx.ALIGN_CENTRE | wx.ST_NO_AUTORESIZE)
@@ -909,12 +909,12 @@ class MainFrame(wx.Frame):
         # since we have two detector panels displayed, find the corresponding pixel on
         # the other panel (here called "linkedPixel")
         if pixelID in self.pixel_ids1:
-            index = np.where(self.pixel_ids1 == pixelID)[0][0]
-            linkedID = self.pixel_ids2[np.where(self.pixel_ids1 == pixelID)]
+            index = self.pixel_ids1.index(pixelID)
+            linkedID = self.pixel_ids2[index]
             linkedPixel = wx.FindWindowById(linkedID)
         elif pixelID in self.pixel_ids2:
-            index = np.where(self.pixel_ids2 == pixelID)[0][0]
-            linkedID = self.pixel_ids1[np.where(self.pixel_ids2 == pixelID)]
+            index = self.pixel_ids2.index(pixelID)
+            linkedID = self.pixel_ids1[index]
             linkedPixel = wx.FindWindowById(linkedID)
         else:
             print 'Error in colour routine: pixel ID not in detector pixel ID lists.'
@@ -990,11 +990,11 @@ class MainFrame(wx.Frame):
         clickedPixel = wx.FindWindowById(pixelID)
 
         if pixelID in self.pixel_ids1:
-            index = np.where(self.pixel_ids1 == pixelID)[0]
+            index = self.pixel_ids1.index(pixelID)
             linkedID = self.pixel_ids2[index]
             linkedPixel = wx.FindWindowById(linkedID)
         elif pixelID in self.pixel_ids2:
-            index = np.where(self.pixel_ids2 == pixelID)[0]
+            index = self.pixel_ids2.index(pixelID)
             linkedID = self.pixel_ids1[index]
             linkedPixel = wx.FindWindowById(linkedID)
         else:
@@ -1061,11 +1061,11 @@ class MainFrame(wx.Frame):
         pixelEntered = wx.FindWindowById(pixelID)
         # identify which pixel number (index) belongs to the triggering pixel
         if pixelID in self.pixel_ids1:
-            index = np.where(self.pixel_ids1 == pixelID)[0]
+            index = self.pixel_ids1.index(pixelID)
             linkedID = self.pixel_ids2[index]
             linkedPixel = wx.FindWindowById(linkedID)
         elif pixelID in self.pixel_ids2:
-            index = np.where(self.pixel_ids2 == pixelID)[0]
+            index = self.pixel_ids2.index(pixelID)
             linkedID = self.pixel_ids1[index]
             linkedPixel = wx.FindWindowById(linkedID)
         else:
@@ -1079,7 +1079,7 @@ class MainFrame(wx.Frame):
             'Weight: {weight:0.2f}',
             ]).format(
                 roi_average=int(self.results[self.specSelec].ROIaverage[index]),
-                correlation=self.results[self.specSelec].correls[index][0],
+                correlation=self.results[self.specSelec].correls[index],
                 tcr_average=int(self.results[self.specSelec].TCRaverage[index]),
                 weight=self.results[self.specSelec].det[index].weightFactor,
             ),
@@ -1128,11 +1128,11 @@ class MainFrame(wx.Frame):
         pixelID = event.GetEventObject().GetId()
         pixelLeft = wx.FindWindowById(pixelID)
         if pixelID in self.pixel_ids1:
-            index = np.where(self.pixel_ids1 == pixelID)[0]
+            index = self.pixel_ids1.index(pixelID)
             linkedID = self.pixel_ids2[index]
             linkedPixel = wx.FindWindowById(linkedID)
         elif pixelID in self.pixel_ids2:
-            index = np.where(self.pixel_ids2 == pixelID)[0]
+            index = self.pixel_ids2.index(pixelID)
             linkedID = self.pixel_ids1[index]
             linkedPixel = wx.FindWindowById(linkedID)
         else:
