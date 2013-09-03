@@ -146,8 +146,8 @@ class MainFrame ( wx.Frame ):
 		self.m_UpperRightPanel = wx.Panel( self.m_splitter1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
 		bSizer61 = wx.BoxSizer( wx.VERTICAL )
 		
-		self.m_notebook6 = wx.Notebook( self.m_UpperRightPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.NB_LEFT )
-		self.m_AvgsPanel = wx.Panel( self.m_notebook6, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		self.m_UpperNotebook = wx.Notebook( self.m_UpperRightPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.NB_LEFT )
+		self.m_AvgsPanel = wx.Panel( self.m_UpperNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
 		bAvgsSizer = wx.BoxSizer( wx.HORIZONTAL )
 		
 		self.m_panelMuAverage = wx.Panel( self.m_AvgsPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
@@ -160,11 +160,37 @@ class MainFrame ( wx.Frame ):
 		self.m_AvgsPanel.SetSizer( bAvgsSizer )
 		self.m_AvgsPanel.Layout()
 		bAvgsSizer.Fit( self.m_AvgsPanel )
-		self.m_notebook6.AddPage( self.m_AvgsPanel, u"Avg", True )
-		self.m_SpectrumPanel = wx.Panel( self.m_notebook6, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
-		self.m_notebook6.AddPage( self.m_SpectrumPanel, u"Spectrum", False )
+		self.m_UpperNotebook.AddPage( self.m_AvgsPanel, u"Avg", True )
+		self.m_SpectrumPanel = wx.Panel( self.m_UpperNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer11 = wx.BoxSizer( wx.VERTICAL )
 		
-		bSizer61.Add( self.m_notebook6, 1, wx.EXPAND |wx.ALL, 0 )
+		self.m_SpectrumPlotPanel = wx.Panel( self.m_SpectrumPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer11.Add( self.m_SpectrumPlotPanel, 1, wx.EXPAND |wx.ALL, 5 )
+		
+		self.m_SpectrumSelectionPanel = wx.Panel( self.m_SpectrumPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer12 = wx.BoxSizer( wx.HORIZONTAL )
+		
+		self.m_StepSlider = wx.Slider( self.m_SpectrumSelectionPanel, wx.ID_ANY, 1, 1, 100, wx.DefaultPosition, wx.DefaultSize, wx.SL_AUTOTICKS|wx.SL_HORIZONTAL )
+		self.m_StepSlider.SetToolTipString( u"Energy Step" )
+		
+		bSizer12.Add( self.m_StepSlider, 8, wx.ALL, 0 )
+		
+		self.m_StepSpinCtrl = wx.SpinCtrl( self.m_SpectrumSelectionPanel, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 1, 100, 1 )
+		bSizer12.Add( self.m_StepSpinCtrl, 1, wx.ALIGN_CENTER|wx.ALL, 2 )
+		
+		
+		self.m_SpectrumSelectionPanel.SetSizer( bSizer12 )
+		self.m_SpectrumSelectionPanel.Layout()
+		bSizer12.Fit( self.m_SpectrumSelectionPanel )
+		bSizer11.Add( self.m_SpectrumSelectionPanel, 0, wx.EXPAND |wx.ALL, 2 )
+		
+		
+		self.m_SpectrumPanel.SetSizer( bSizer11 )
+		self.m_SpectrumPanel.Layout()
+		bSizer11.Fit( self.m_SpectrumPanel )
+		self.m_UpperNotebook.AddPage( self.m_SpectrumPanel, u"Spectrum", False )
+		
+		bSizer61.Add( self.m_UpperNotebook, 1, wx.EXPAND |wx.ALL, 0 )
 		
 		
 		self.m_UpperRightPanel.SetSizer( bSizer61 )
@@ -235,6 +261,9 @@ class MainFrame ( wx.Frame ):
 		self.m_radioBtn_DetInt.Bind( wx.EVT_RADIOBUTTON, self.OnRadioBtn_TCR )
 		self.m_panelMuAverage.Bind( wx.EVT_SIZE, self.OnSize_MuAverageCanvas )
 		self.m_panelChiAverage.Bind( wx.EVT_SIZE, self.OnSize_ChiAverageCanvas )
+		self.m_SpectrumPlotPanel.Bind( wx.EVT_SIZE, self.OnSize_SpectrumPlotCanvas )
+		self.m_StepSlider.Bind( wx.EVT_SCROLL, self.OnScroll_StepSlider )
+		self.m_StepSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSpinCtrl_StepSpinCtrl )
 		self.m_MuLeftPanel.Bind( wx.EVT_SIZE, self.OnSize_MuLeftCanvas )
 		self.m_MuRightPanel.Bind( wx.EVT_SIZE, self.OnSize_MuRightCanvas )
 		self.m_toggleBtn_MuChi.Bind( wx.EVT_TOGGLEBUTTON, self.OnToggleMuChi )
@@ -278,6 +307,15 @@ class MainFrame ( wx.Frame ):
 		event.Skip()
 	
 	def OnSize_ChiAverageCanvas( self, event ):
+		event.Skip()
+	
+	def OnSize_SpectrumPlotCanvas( self, event ):
+		event.Skip()
+	
+	def OnScroll_StepSlider( self, event ):
+		event.Skip()
+	
+	def OnSpinCtrl_StepSpinCtrl( self, event ):
 		event.Skip()
 	
 	def OnSize_MuLeftCanvas( self, event ):

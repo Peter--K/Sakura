@@ -42,8 +42,8 @@ class Pixel(object):
 
     # expose the DetectorData spectrum(), statistic() and
     #    pixel_header_mode1_item() methods here
-    def spectrum(self, *args, **kwargs):
-        return self.detector_data.spectrum(*args, **kwargs)
+    def spectrum(self, pixel_step):
+        return self.detector_data.spectrum(pixel_step, row=self.row, col=self.col)
 
     @memoize
     def statistic(self, *args, **kwargs):
