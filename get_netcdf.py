@@ -201,8 +201,10 @@ def highest_available_scandata(detector, scanSize):
     for i in range(scanSize):
         try:
             detector.det[0].pixel_header_mode1_item(i, 0, 0, 'tag0', check_validity=False)
-        except IndexError:
+        except:
             print 'netCDF data truncated'
+            i = i - 1
+            break
     return i + 1
 
 
