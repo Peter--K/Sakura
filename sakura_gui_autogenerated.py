@@ -147,7 +147,7 @@ class MainFrame ( wx.Frame ):
 		bSizer61 = wx.BoxSizer( wx.VERTICAL )
 		
 		self.m_UpperNotebook = wx.Notebook( self.m_UpperRightPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.NB_LEFT )
-		self.m_AvgsPanel = wx.Panel( self.m_UpperNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		self.m_AvgsPanel = wx.Panel( self.m_UpperNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL, u"m_AvgsPanel" )
 		bAvgsSizer = wx.BoxSizer( wx.HORIZONTAL )
 		
 		self.m_panelMuAverage = wx.Panel( self.m_AvgsPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
@@ -161,28 +161,67 @@ class MainFrame ( wx.Frame ):
 		self.m_AvgsPanel.Layout()
 		bAvgsSizer.Fit( self.m_AvgsPanel )
 		self.m_UpperNotebook.AddPage( self.m_AvgsPanel, u"Avg", True )
-		self.m_SpectrumPanel = wx.Panel( self.m_UpperNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		self.m_SpectrumPanel = wx.Panel( self.m_UpperNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL, u"m_SpectrumPanel" )
 		bSizer11 = wx.BoxSizer( wx.VERTICAL )
 		
 		self.m_SpectrumPlotPanel = wx.Panel( self.m_SpectrumPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
 		bSizer11.Add( self.m_SpectrumPlotPanel, 1, wx.EXPAND |wx.ALL, 5 )
 		
-		self.m_SpectrumSelectionPanel = wx.Panel( self.m_SpectrumPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		self.m_RoiPanel = wx.Panel( self.m_SpectrumPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer13 = wx.BoxSizer( wx.HORIZONTAL )
+		
+		self.m_staticText1 = wx.StaticText( self.m_RoiPanel, wx.ID_ANY, u"ROI", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_staticText1.Wrap( -1 )
+		bSizer13.Add( self.m_staticText1, 0, wx.ALIGN_CENTER|wx.ALL, 2 )
+		
+		self.m_RoiLowSlider = wx.Slider( self.m_RoiPanel, wx.ID_ANY, 50, 0, 100, wx.DefaultPosition, wx.DefaultSize, wx.SL_HORIZONTAL|wx.SL_TOP, wx.DefaultValidator, u"m_RoiLowSlider" )
+		self.m_RoiLowSlider.SetToolTipString( u"ROI Low" )
+		
+		bSizer13.Add( self.m_RoiLowSlider, 4, wx.ALL, 0 )
+		
+		self.m_RoiLowSpinCtrl = wx.SpinCtrl( self.m_RoiPanel, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 10, 0, u"m_RoiLowSpinCtrl" )
+		self.m_RoiLowSpinCtrl.SetToolTipString( u"ROI Low" )
+		
+		bSizer13.Add( self.m_RoiLowSpinCtrl, 1, wx.ALL, 2 )
+		
+		self.m_RoiHighSlider = wx.Slider( self.m_RoiPanel, wx.ID_ANY, 50, 0, 100, wx.DefaultPosition, wx.DefaultSize, wx.SL_HORIZONTAL|wx.SL_TOP, wx.DefaultValidator, u"m_RoiHighSlider" )
+		self.m_RoiHighSlider.SetToolTipString( u"ROI High" )
+		
+		bSizer13.Add( self.m_RoiHighSlider, 4, wx.ALL, 0 )
+		
+		self.m_RoiHighSpinCtrl = wx.SpinCtrl( self.m_RoiPanel, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 0, 10, 0, u"m_RoiHighSpinCtrl" )
+		self.m_RoiHighSpinCtrl.SetToolTipString( u"ROI High" )
+		
+		bSizer13.Add( self.m_RoiHighSpinCtrl, 1, wx.ALL, 2 )
+		
+		
+		self.m_RoiPanel.SetSizer( bSizer13 )
+		self.m_RoiPanel.Layout()
+		bSizer13.Fit( self.m_RoiPanel )
+		bSizer11.Add( self.m_RoiPanel, 0, wx.ALL|wx.EXPAND, 0 )
+		
+		self.m_SpectrumSelectionPanel = wx.Panel( self.m_SpectrumPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.SUNKEN_BORDER|wx.TAB_TRAVERSAL )
 		bSizer12 = wx.BoxSizer( wx.HORIZONTAL )
 		
-		self.m_StepSlider = wx.Slider( self.m_SpectrumSelectionPanel, wx.ID_ANY, 1, 1, 100, wx.DefaultPosition, wx.DefaultSize, wx.SL_AUTOTICKS|wx.SL_HORIZONTAL )
+		self.m_staticText2 = wx.StaticText( self.m_SpectrumSelectionPanel, wx.ID_ANY, u"Energy Step", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_staticText2.Wrap( -1 )
+		bSizer12.Add( self.m_staticText2, 0, wx.ALIGN_CENTER|wx.ALL, 2 )
+		
+		self.m_StepSlider = wx.Slider( self.m_SpectrumSelectionPanel, wx.ID_ANY, 1, 1, 100, wx.DefaultPosition, wx.DefaultSize, wx.SL_BOTH|wx.SL_HORIZONTAL )
 		self.m_StepSlider.SetToolTipString( u"Energy Step" )
 		
 		bSizer12.Add( self.m_StepSlider, 8, wx.ALL, 0 )
 		
 		self.m_StepSpinCtrl = wx.SpinCtrl( self.m_SpectrumSelectionPanel, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.SP_ARROW_KEYS, 1, 100, 1 )
+		self.m_StepSpinCtrl.SetToolTipString( u"Energy Step" )
+		
 		bSizer12.Add( self.m_StepSpinCtrl, 1, wx.ALIGN_CENTER|wx.ALL, 2 )
 		
 		
 		self.m_SpectrumSelectionPanel.SetSizer( bSizer12 )
 		self.m_SpectrumSelectionPanel.Layout()
 		bSizer12.Fit( self.m_SpectrumSelectionPanel )
-		bSizer11.Add( self.m_SpectrumSelectionPanel, 0, wx.EXPAND |wx.ALL, 2 )
+		bSizer11.Add( self.m_SpectrumSelectionPanel, 0, wx.ALL|wx.EXPAND, 2 )
 		
 		
 		self.m_SpectrumPanel.SetSizer( bSizer11 )
@@ -200,7 +239,7 @@ class MainFrame ( wx.Frame ):
 		bSizer7 = wx.BoxSizer( wx.VERTICAL )
 		
 		self.m_MuChiNotebook = wx.Notebook( self.m_LowerRightPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.NB_LEFT )
-		self.m_MuPanel = wx.Panel( self.m_MuChiNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		self.m_MuPanel = wx.Panel( self.m_MuChiNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL, u"m_MuPanel" )
 		bSizer101 = wx.BoxSizer( wx.HORIZONTAL )
 		
 		self.m_MuLeftPanel = wx.Panel( self.m_MuPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
@@ -214,7 +253,7 @@ class MainFrame ( wx.Frame ):
 		self.m_MuPanel.Layout()
 		bSizer101.Fit( self.m_MuPanel )
 		self.m_MuChiNotebook.AddPage( self.m_MuPanel, u"Mu(E)", True )
-		self.m_ChiPanel = wx.Panel( self.m_MuChiNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		self.m_ChiPanel = wx.Panel( self.m_MuChiNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL, u"m_ChiPanel" )
 		self.m_MuChiNotebook.AddPage( self.m_ChiPanel, u"Chi(k)", False )
 		
 		bSizer7.Add( self.m_MuChiNotebook, 1, wx.EXPAND |wx.ALL, 0 )
@@ -259,9 +298,14 @@ class MainFrame ( wx.Frame ):
 		self.m_radioBtn_Correl.Bind( wx.EVT_RADIOBUTTON, self.OnRadioBtn_Correl )
 		self.m_radioBtn_Weights.Bind( wx.EVT_RADIOBUTTON, self.OnRadioBtn_Weights )
 		self.m_radioBtn_DetInt.Bind( wx.EVT_RADIOBUTTON, self.OnRadioBtn_TCR )
+		self.m_UpperNotebook.Bind( wx.EVT_NOTEBOOK_PAGE_CHANGING, self.OnChanging_UpperNotebook )
 		self.m_panelMuAverage.Bind( wx.EVT_SIZE, self.OnSize_MuAverageCanvas )
 		self.m_panelChiAverage.Bind( wx.EVT_SIZE, self.OnSize_ChiAverageCanvas )
 		self.m_SpectrumPlotPanel.Bind( wx.EVT_SIZE, self.OnSize_SpectrumPlotCanvas )
+		self.m_RoiLowSlider.Bind( wx.EVT_SCROLL, self.OnSetRoi )
+		self.m_RoiLowSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSetRoi )
+		self.m_RoiHighSlider.Bind( wx.EVT_SCROLL, self.OnSetRoi )
+		self.m_RoiHighSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSetRoi )
 		self.m_StepSlider.Bind( wx.EVT_SCROLL, self.OnScroll_StepSlider )
 		self.m_StepSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSpinCtrl_StepSpinCtrl )
 		self.m_MuLeftPanel.Bind( wx.EVT_SIZE, self.OnSize_MuLeftCanvas )
@@ -303,6 +347,9 @@ class MainFrame ( wx.Frame ):
 	def OnRadioBtn_TCR( self, event ):
 		event.Skip()
 	
+	def OnChanging_UpperNotebook( self, event ):
+		event.Skip()
+	
 	def OnSize_MuAverageCanvas( self, event ):
 		event.Skip()
 	
@@ -311,6 +358,12 @@ class MainFrame ( wx.Frame ):
 	
 	def OnSize_SpectrumPlotCanvas( self, event ):
 		event.Skip()
+	
+	def OnSetRoi( self, event ):
+		event.Skip()
+	
+	
+	
 	
 	def OnScroll_StepSlider( self, event ):
 		event.Skip()

@@ -165,6 +165,26 @@ class Detector(list):
         self.ts = ts
 
 
+def getAllExtraPVs(fname):
+    """Return a dictionary of all "Extra" PVs, indexed by the part of the PV name
+    following the colon, e.g. if fname contains the PV SR12ID01DET01:mca1.R0LO with a
+    value ("long", "", [1200]), the returned dict will contain a key:value entry
+    'mca1.R0LO':("long", "", [1200]), where the value is the triple obtained from readMDA
+
+    Arguments:
+    fname - mda filename
+
+    Returns:
+    dict e.g. {'mca1.R0LO':("long", "", [1000]), 'mca1.R0HI':("long", "", [1200]), ...}
+
+    """
+    # get the path to the netCDF files from the mda file
+    mda = readMDA.readMDA(fname, verbose=False)
+    extra_pvs = mda[0]         # get the first list entry - a dict containing the PVs
+    extra_pvs_dict = {i.split(':')[-1]: extra_pvs[i] for i in extra_pvs}
+    return extra_pvs_dict
+
+
 def getExtraPV(mda_list, pv):
     """Return the PV value using the PV part of an IOC:PV id for matching
     e.g. getExtraPV(mda_list, 'CUR_TIME_STAMP') will match SR12ID01MC01:CUR_TIME_STAMP
@@ -238,10 +258,9 @@ def getData(fname):
     scanSize = highest_available_scandata(detector, scanSize)
     detector.steprange = range(scanSize)
 
-    # TODO: get rid of the next line
-    detector.set_roi_limits(600, 800)   # start with this roi range
-
     # read transmission data
+    # The PVs listed in pvColumnNames all refer to columnar data such as axis values.
+    # This is contrasted by thoselisted in pvSingleValues, which are all single values.
     pvColumnNames = ['EncEnergy:ActPos', 'scaler1:S2C', 'scaler1:S3C',
                      'scaler1:S4C', 'scaler1.T', 'EncAngle:ActPos']
 

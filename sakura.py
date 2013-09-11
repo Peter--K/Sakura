@@ -16,10 +16,15 @@
 
 import wx
 from sakura_ui import SakuraBaseMainFrame
+import wx.lib.mixins.inspection
 
 
-class SakuraWxApp(wx.App):
+class SakuraWxApp(wx.App, wx.lib.mixins.inspection.InspectionMixin):
+    """The main application class - added a wxPython inspection tool
+    http://wiki.wxpython.org/Widget%20Inspection%20Tool
+    """
     def OnInit(self):
+        self.Init()  # initialize the inspection tool
         self.m_frame = SakuraBaseMainFrame(None)
         self.m_frame.Show()
         self.SetTopWindow(self.m_frame)
