@@ -7,7 +7,7 @@ import readMDA
 
 from utils import memoize
 # Maybe use gocept's cache if I can bundle it easily
-# import gocept.cache.method
+import gocept.cache.method
 
 #
 # set up a CLASS for detector pixels
@@ -58,8 +58,8 @@ class Pixel(object):
         spectrum = self.detector_data.spectrum(pixel_step, self.row, self.col)
         return spectrum[low:high]
 
-    # @gocept.cache.method.Memoize(10)
-    @memoize
+    @gocept.cache.method.Memoize(10)
+    # @memoize
     def _roi(self, roi_low, roi_high):
         data = np.array([self._GetSpectrumROI(step, roi_low, roi_high).sum()
                          for step in self.detector.steprange])
@@ -155,10 +155,6 @@ class Detector(list):
         )
 
     # Methods for our container class additional to those required for list-like behaviour
-    def set_roi_limits(self, low, high):
-        """Set the roi limits for the detector."""
-        self.roi_low = low
-        self.roi_high = high
 
     def set_ts(self, ts):
         """Set sample times for NormT correction."""
