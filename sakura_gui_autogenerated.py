@@ -254,6 +254,18 @@ class MainFrame ( wx.Frame ):
 		bSizer101.Fit( self.m_MuPanel )
 		self.m_MuChiNotebook.AddPage( self.m_MuPanel, u"Mu(E)", True )
 		self.m_ChiPanel = wx.Panel( self.m_MuChiNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL, u"m_ChiPanel" )
+		bSizer14 = wx.BoxSizer( wx.HORIZONTAL )
+		
+		self.m_ChiLeftPanel = wx.Panel( self.m_ChiPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer14.Add( self.m_ChiLeftPanel, 1, wx.EXPAND |wx.ALL, 5 )
+		
+		self.m_ChiRightPanel = wx.Panel( self.m_ChiPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer14.Add( self.m_ChiRightPanel, 1, wx.EXPAND |wx.ALL, 5 )
+		
+		
+		self.m_ChiPanel.SetSizer( bSizer14 )
+		self.m_ChiPanel.Layout()
+		bSizer14.Fit( self.m_ChiPanel )
 		self.m_MuChiNotebook.AddPage( self.m_ChiPanel, u"Chi(k)", False )
 		
 		bSizer7.Add( self.m_MuChiNotebook, 1, wx.EXPAND |wx.ALL, 0 )
@@ -310,6 +322,8 @@ class MainFrame ( wx.Frame ):
 		self.m_StepSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSpinCtrl_StepSpinCtrl )
 		self.m_MuLeftPanel.Bind( wx.EVT_SIZE, self.OnSize_MuLeftCanvas )
 		self.m_MuRightPanel.Bind( wx.EVT_SIZE, self.OnSize_MuRightCanvas )
+		self.m_ChiLeftPanel.Bind( wx.EVT_SIZE, self.OnSize_ChiLeftCanvas )
+		self.m_ChiRightPanel.Bind( wx.EVT_SIZE, self.OnSize_ChiRightCanvas )
 		self.m_toggleBtn_MuChi.Bind( wx.EVT_TOGGLEBUTTON, self.OnToggleMuChi )
 	
 	def __del__( self ):
@@ -375,6 +389,12 @@ class MainFrame ( wx.Frame ):
 		event.Skip()
 	
 	def OnSize_MuRightCanvas( self, event ):
+		event.Skip()
+	
+	def OnSize_ChiLeftCanvas( self, event ):
+		event.Skip()
+	
+	def OnSize_ChiRightCanvas( self, event ):
 		event.Skip()
 	
 	def OnToggleMuChi( self, event ):
