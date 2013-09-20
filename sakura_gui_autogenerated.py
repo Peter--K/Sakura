@@ -194,6 +194,11 @@ class MainFrame ( wx.Frame ):
 		
 		bSizer13.Add( self.m_RoiHighSpinCtrl, 1, wx.ALL, 2 )
 		
+		self.m_bpRefreshButton = wx.BitmapButton( self.m_RoiPanel, wx.ID_ANY, wx.Bitmap( u"resources/arrow_refresh_small.png", wx.BITMAP_TYPE_ANY ), wx.DefaultPosition, wx.DefaultSize, wx.BU_AUTODRAW )
+		self.m_bpRefreshButton.SetToolTipString( u"Reprocess" )
+		
+		bSizer13.Add( self.m_bpRefreshButton, 0, wx.ALL, 2 )
+		
 		
 		self.m_RoiPanel.SetSizer( bSizer13 )
 		self.m_RoiPanel.Layout()
@@ -318,6 +323,7 @@ class MainFrame ( wx.Frame ):
 		self.m_RoiLowSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSetRoi )
 		self.m_RoiHighSlider.Bind( wx.EVT_SCROLL, self.OnSetRoi )
 		self.m_RoiHighSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSetRoi )
+		self.m_bpRefreshButton.Bind( wx.EVT_BUTTON, self.OnClick_RefreshButton )
 		self.m_StepSlider.Bind( wx.EVT_SCROLL, self.OnScroll_StepSlider )
 		self.m_StepSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSpinCtrl_StepSpinCtrl )
 		self.m_MuLeftPanel.Bind( wx.EVT_SIZE, self.OnSize_MuLeftCanvas )
@@ -378,6 +384,9 @@ class MainFrame ( wx.Frame ):
 	
 	
 	
+	
+	def OnClick_RefreshButton( self, event ):
+		event.Skip()
 	
 	def OnScroll_StepSlider( self, event ):
 		event.Skip()
