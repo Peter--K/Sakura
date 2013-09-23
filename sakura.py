@@ -14,7 +14,7 @@
 
 # -*- coding: utf-8 -*-
 
-import wx
+import wx                           # suppress import warning    @UnusedImport
 from sakura_ui import SakuraBaseMainFrame
 import wx.lib.mixins.inspection
 

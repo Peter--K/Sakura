@@ -7,7 +7,7 @@ import readMDA
 
 from utils import memoize
 # Maybe use gocept's cache if I can bundle it easily
-import gocept.cache.method
+import gocept.cache.method      # suppress import warning    @UnresolvedImport
 
 #
 # set up a CLASS for detector pixels
