@@ -199,6 +199,11 @@ class MainFrame ( wx.Frame ):
 		
 		bSizer13.Add( self.m_bpRefreshButton, 0, wx.ALL, 2 )
 		
+		self.m_bpLogLinButton = wx.BitmapButton( self.m_RoiPanel, wx.ID_ANY, wx.Bitmap( u"resources/to_log.png", wx.BITMAP_TYPE_ANY ), wx.DefaultPosition, wx.DefaultSize, wx.BU_AUTODRAW, wx.DefaultValidator, u"to_log" )
+		self.m_bpLogLinButton.SetToolTipString( u"Toggle Log/Lin scaling" )
+		
+		bSizer13.Add( self.m_bpLogLinButton, 0, wx.ALL, 2 )
+		
 		
 		self.m_RoiPanel.SetSizer( bSizer13 )
 		self.m_RoiPanel.Layout()
@@ -324,6 +329,7 @@ class MainFrame ( wx.Frame ):
 		self.m_RoiHighSlider.Bind( wx.EVT_SCROLL, self.OnSetRoi )
 		self.m_RoiHighSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSetRoi )
 		self.m_bpRefreshButton.Bind( wx.EVT_BUTTON, self.OnClick_RefreshButton )
+		self.m_bpLogLinButton.Bind( wx.EVT_BUTTON, self.OnClick_LogLinButton )
 		self.m_StepSlider.Bind( wx.EVT_SCROLL, self.OnScroll_StepSlider )
 		self.m_StepSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSpinCtrl_StepSpinCtrl )
 		self.m_MuLeftPanel.Bind( wx.EVT_SIZE, self.OnSize_MuLeftCanvas )
@@ -386,6 +392,9 @@ class MainFrame ( wx.Frame ):
 	
 	
 	def OnClick_RefreshButton( self, event ):
+		event.Skip()
+	
+	def OnClick_LogLinButton( self, event ):
 		event.Skip()
 	
 	def OnScroll_StepSlider( self, event ):
