@@ -24,9 +24,7 @@ import readMDA
 #import Ifeffit
 import time
 
-from scipy import polyfit
-from scipy import polyval
-from scipy.stats.stats import pearsonr
+from numpy import polyfit, polyval
 
 import edge_tables as etab
 
@@ -55,7 +53,7 @@ class pixel(object):
 
     def GetDead(self, fpeaks, speaks):
         """get detector dead time parameter 'tau' """
-        self.tau = fpeaks / speaks
+        self.tau = fpeaks.astype(float) / speaks
 
     def DeadCorr(self, tau, roi):
         """apply dead time parameter"""
@@ -398,6 +396,61 @@ def applyWeights(det, goodPixels):
         det[i].WeightSpectrum()
 
 
+def pearsonr(x, y):
+    """
+    Calculates a Pearson correlation coefficient and the p-value for testing
+    non-correlation.
+
+    This is scipy's pearsonr function with the 2-tailed p-value return-value removed
+
+    The Pearson correlation coefficient measures the linear relationship
+    between two datasets. Strictly speaking, Pearson's correlation requires
+    that each dataset be normally distributed. Like other correlation
+    coefficients, this one varies between -1 and +1 with 0 implying no
+    correlation. Correlations of -1 or +1 imply an exact linear
+    relationship. Positive correlations imply that as x increases, so does
+    y. Negative correlations imply that as x increases, y decreases.
+
+    The p-value roughly indicates the probability of an uncorrelated system
+    producing datasets that have a Pearson correlation at least as extreme
+    as the one computed from these datasets. The p-values are not entirely
+    reliable but are probably reasonable for datasets larger than 500 or so.
+
+    Parameters
+    ----------
+    x : (N,) array_like
+        Input
+    y : (N,) array_like
+        Input
+
+    Returns
+    -------
+    Pearson's correlation coefficient
+
+    References
+    ----------
+    http://www.statsoft.com/textbook/glosp.html#Pearson%20Correlation
+
+    """
+    # x and y should have same length.
+    x = np.asarray(x)
+    y = np.asarray(y)
+    n = len(x)
+    mx = x.mean()
+    my = y.mean()
+    xm, ym = x-mx, y-my
+    r_num = n*(np.add.reduce(xm*ym))
+    ss = lambda x: np.dot(x, x)
+    r_den = n*np.sqrt(ss(xm)*ss(ym))
+    r = (r_num / r_den)
+
+    # Presumably, if abs(r) > 1, then it is only some small artifact of floating
+    # point arithmetic.
+    r = max(min(r, 1.0), -1.0)
+
+    return r
+
+
 def getCorrels(det, goodPixels):
     """Compute spectra correlation coefficients (using Pearsons Correlation)
 
@@ -412,7 +465,7 @@ def getCorrels(det, goodPixels):
     correls = np.zeros(len(det))
     for i in goodPixels:
         for j in goodPixels:
-            correls[i] += pearsonr(det[i].roi, det[j].roi)[0]
+            correls[i] += pearsonr(det[i].roi, det[j].roi)
 
     correls = correls / len(det)
 
