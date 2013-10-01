@@ -89,7 +89,7 @@ class Pixel(object):
     def GetDead(self, fpeaks, speaks):
         # get detector dead time parameter "tau"
         try:
-            self.tau = fpeaks / speaks
+            self.tau = fpeaks.astype(float) / speaks
         except ZeroDivisionError:
             self.tau = fpeaks
 

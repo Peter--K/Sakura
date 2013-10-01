@@ -375,6 +375,9 @@ def getWeightFactors(det, e, e0, goodPixels):
         # use weighting with "w" to get consistent y-scale
 
     # normalise weight factors to 1 (makes output ROI and TCR values less arbitrary)
+    # First replace any infs with max value in remainder of array
+    infmask = np.isinf(weights)
+    weights[infmask] = np.nanmax(weights[~infmask])
     weights = weights / np.nanmax(weights)
 
     # append weight factors as attributes to detector Pixels Objects
