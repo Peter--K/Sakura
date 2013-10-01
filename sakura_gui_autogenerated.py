@@ -284,11 +284,8 @@ class MainFrame ( wx.Frame ):
 		self.m_LowerRightPanel.SetSizer( bSizer7 )
 		self.m_LowerRightPanel.Layout()
 		bSizer7.Fit( self.m_LowerRightPanel )
-		self.m_splitter1.SplitHorizontally( self.m_UpperRightPanel, self.m_LowerRightPanel, 262 )
+		self.m_splitter1.SplitHorizontally( self.m_UpperRightPanel, self.m_LowerRightPanel, 300 )
 		bRightPanelSizer.Add( self.m_splitter1, 1, wx.EXPAND, 0 )
-		
-		self.m_toggleBtn_MuChi = wx.ToggleButton( self.m_RightPanel, wx.ID_ANY, u"chi(k)", wx.DefaultPosition, wx.DefaultSize, 0 )
-		bRightPanelSizer.Add( self.m_toggleBtn_MuChi, 0, wx.ALL, 5 )
 		
 		
 		self.m_RightPanel.SetSizer( bRightPanelSizer )
@@ -336,7 +333,6 @@ class MainFrame ( wx.Frame ):
 		self.m_MuRightPanel.Bind( wx.EVT_SIZE, self.OnSize_MuRightCanvas )
 		self.m_ChiLeftPanel.Bind( wx.EVT_SIZE, self.OnSize_ChiLeftCanvas )
 		self.m_ChiRightPanel.Bind( wx.EVT_SIZE, self.OnSize_ChiRightCanvas )
-		self.m_toggleBtn_MuChi.Bind( wx.EVT_TOGGLEBUTTON, self.OnToggleMuChi )
 	
 	def __del__( self ):
 		pass
@@ -415,11 +411,8 @@ class MainFrame ( wx.Frame ):
 	def OnSize_ChiRightCanvas( self, event ):
 		event.Skip()
 	
-	def OnToggleMuChi( self, event ):
-		event.Skip()
-	
 	def m_splitter1OnIdle( self, event ):
-		self.m_splitter1.SetSashPosition( 262 )
+		self.m_splitter1.SetSashPosition( 300 )
 		self.m_splitter1.Unbind( wx.EVT_IDLE )
 	
 
