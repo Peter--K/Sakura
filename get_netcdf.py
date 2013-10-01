@@ -5,9 +5,11 @@ import numpy as np
 from xmap_netcdf_reader import DetectorData
 import readMDA
 
+from memoize_core import Memoizer
+store = {}
+expiring_memoize = Memoizer(store)
+
 from utils import memoize
-# Maybe use gocept's cache if I can bundle it easily
-import gocept.cache.method      # suppress import warning    @UnresolvedImport
 
 #
 # set up a CLASS for detector pixels
@@ -58,8 +60,7 @@ class Pixel(object):
         spectrum = self.detector_data.spectrum(pixel_step, self.row, self.col)
         return spectrum[low:high]
 
-    @gocept.cache.method.Memoize(10)
-    # @memoize
+    @expiring_memoize(max_age=10)
     def _roi(self, roi_low, roi_high):
         data = np.array([self._GetSpectrumROI(step, roi_low, roi_high).sum()
                          for step in self.detector.steprange])
