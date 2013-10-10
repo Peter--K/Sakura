@@ -23,6 +23,9 @@ import readMDA
 #import pylab as pl
 #import Ifeffit
 import time
+from textwrap import dedent
+from itertools import chain, repeat, izip
+import version
 
 from numpy import polyfit, polyval
 
@@ -549,104 +552,78 @@ def getAverage(goodPixels, det):
     return averageMu, averageChi
 
 
-def writeDataBlock(f, output, numFormat):
-    """Write a 2D-array of floats as 2D-array of strings into a file
-
-    Input arguments:
-    f - file handle
-    output - 2D-array to convert
-    numFormat - float format
-
-    """
-    for i in range(len(output)):
-        f.write('# ')
-        f.write(output[i])
-        f.write(' \n')
-
-
 def writeAverages(mdaOutName, goodPixels, correls,
                   k, e, trans, weights, averageMu, averageChi):
     """Produces an output file containing averaged data and meta-information
     and writes this file to disk.
 
     """
-    f = open(mdaOutName.split('.mda')[0] + '.asc', 'w')
+    # make a 10-at-a-time iterator; see examples in Python itertools documentation
+    ten_of = lambda x: izip(*[chain(x, repeat(None, 9))]*10)
 
-    f.write('# \n')
-    f.write('#  SAKURA output \n')
-    f.write('# \n')
-    f.write('# \n')
-    f.write('# MDA file processed: ' + mdaOutName + '\n')
-    f.write('# \n')
+    with open(mdaOutName.replace('.mda', '.asc'), 'w') as f:
+        # Header
+        timestamp = time.asctime(time.localtime())
+        print >>f, dedent("""\
+            #
+            # SAKURA {version} output
+            #
+            # Generated on {timestamp}
+            # MDA file processed: {mdaOutName}
+            #\
+            """.format(
+                mdaOutName=mdaOutName,
+                timestamp=timestamp,
+                version=version.__version__))
 
-    # write matrix of "goodPixels" to file; replace "-1" and "-2" with "--"
-    f.write('# \n')
-    f.write('# \n')
-    f.write('# Detector pixels used (reads "--" if excluded): \n')
-    f.write('# ---------------------------------------------- \n')
-    f.write('# \n')
-    indices = np.where(goodPixels < 0)
-    output = np.asarray(goodPixels, dtype='string')
-    output[indices] = '--'
-    output = np.reshape(output, (10, 10))
-    for i in range(len(output)):
-        f.write('# ')
-        f.write(output[i])
-        f.write(' \n')
+        # write matrix of "goodPixels"; replace "-1" and "-2" with "--"
+        print >>f, dedent("""\
+            #
+            # Detector pixels used (reads "--" if excluded):
+            # ----------------------------------------------
+            #\
+            """)
+        output = ['{:02d}'.format(i) if i >= 0 else '--' for i in goodPixels]
+        for items in ten_of(output):
+            print >>f, '#',
+            print >>f, ' '.join(items)
 
-    # write matrix of correlation coefficients to file
-    f.write('# \n')
-    f.write('# \n')
-    f.write('# Correlation coefficients: \n')
-    f.write('# ------------------------- \n')
-    f.write('# \n')
-    output = np.reshape(correls, (10, 10))
-    for i in range(len(output)):
-        f.write('# ')
-        for j in range(len(output[i])):
-            f.write(('{:.2%}  ').format(output[i][j]))
-        f.write('\n')
-    f.write('# \n')
+        # write matrix of correlation coefficients
+        print >>f, dedent("""\
+            #
+            #
+            # Correlation coefficients (%):
+            # -----------------------------
+            #\
+            """)
+        output = ['{:>6.2f}'.format(i*100) for i in correls]
+        for items in ten_of(output):
+            print >>f, '#',
+            print >>f, '  '.join(items)
 
-    # write matrix of weight factors to file
-    f.write('# \n')
-    f.write('# \n')
-    f.write('# Weight Factors: \n')
-    f.write('# --------------- \n')
-    f.write('# \n')
-    output = np.reshape(weights, (10, 10))
-    for i in range(len(output)):
-        f.write('# ')
-        for j in range(len(output[i])):
-            f.write(('{:.2%}  ').format(output[i][j]))
-        f.write('\n')
-    f.write('# \n')
+        # write matrix of weight factors
+        print >>f, dedent("""\
+            #
+            #
+            # Weight Factors (%):
+            # -------------------
+            #\
+            """)
+        output = ['{:>6.2f}'.format(i*100) for i in weights]
+        for items in ten_of(output):
+            print >>f, '#',
+            print >>f, '  '.join(items)
+    
+        print >>f, "#"
+        print >>f, "#"
 
-    # write data to file
-    f.write('# \n')
-    f.write('# Data: \n')
-    f.write('# ----- \n')
-    f.write('# \n')
-    f.write('# E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]    ' +
-              'I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg] \n')
+        # write data
+        output = np.vstack((e, averageMu, trans[1:])).T
+        np.savetxt(f, output, fmt='%14.6f %14.6f %14.6f %14.6f %14.6f %4.1f %14.6f',
+            header = 'E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]' + \
+                     '    I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg]')
 
-    output = []
-    output = np.append(e, averageMu)
-    output = np.append(
-        output, trans[1:])   # energy axis already used (e = trans[0])
-    output = np.reshape(output, (len(e), -1), order='F')
-            # "-1" means that np.reshape determines second dimension itself
-    output = np.asarray(output, dtype='string')
-
-    outYDim = np.shape(output)[1]
-    for i in range(len(output)):
-        for j in range(outYDim):
-            f.write(output[i][j])
-            f.write('    ')
-        f.write(' \n')
-
-    f.close
-    print '... data saved.'
+        print '... data saved.'
 
 
 def notepad_gmda():
