@@ -15,6 +15,24 @@ from utils import memoize
 # set up a CLASS for detector pixels
 #
 
+"""
+This module provides an interface to a DetectorData netCDF reader object that provides
+the same interface to netCDF-based mapping-mode data as for mda-file-based step-mode data.
+For example, step-mode data from the 100-element Canberra detector is accessed from Sakura
+through a list object that contains pixel objects, each of which accesses the roi, fpeaks,
+speaks values through attributes (.roi, .fpeaks, .speaks). Access to an individual pixel
+object is through a standard list indexing operation, e.g. self.det[i], so accessing the
+ith pixel's roi value would be self.det[i].roi
+Furthermore, the pixel class for step-mode data provides a number of methods that are
+also provided here in the Pixel class, e.g. .DeadCorr(), .NormIO().
+To speed up access to computed roi, fpeaks and speaks values, which are accessed using the
+attribute syntax (self.det[i].fpeaks, self.det[i].speaks, self.det[i].roi), fpeaks and
+speaks values are computed once and cached (@memoize decorator), and the roi value is
+computed and temporarily cached (@expiring_memoize decorator with 10s expiry).
+The roi value in particular is computed on the fly based on the roi limits (roi_low and
+roi_high) stored in the Detector instance (e.g. self.det.roi_low).
+
+"""
 
 class Pixel(object):
     """Class to describe a detector element and its 'contents'
