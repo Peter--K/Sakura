@@ -26,6 +26,7 @@ import time
 from textwrap import dedent
 from itertools import chain, repeat, izip
 import version
+import wx
 
 from numpy import polyfit, polyval
 
@@ -591,8 +592,13 @@ def writeAverages(mdaOutName, goodPixels, correls,
     except IOError:
         file_exists = False
     if file_exists:
-        print 'File', asciiFilename, 'exists, aborting write...'
-        return
+        message = os.path.basename(asciiFilename) + ' exists, overwrite?'
+        md = wx.MessageDialog(parent=None, message=message,
+            caption='Attention', style=wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+        result = md.ShowModal()
+        if result == wx.ID_NO:
+            return
+
     with open(asciiFilename, 'w') as f:
         # Header
         timestamp = time.asctime(time.localtime())
@@ -660,6 +666,10 @@ def writeAverages(mdaOutName, goodPixels, correls,
                      '    I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg]')
 
         print '... data saved.'
+        message = os.path.basename(asciiFilename) + ' written'
+        md = wx.MessageDialog(parent=None, message=message,
+            caption='File saved', style=wx.OK)
+        md.ShowModal()
 
 
 def notepad_gmda():
