@@ -552,8 +552,31 @@ def getAverage(goodPixels, det):
     return averageMu, averageChi
 
 
+def writePvBlock(extra_pvs):
+    """returns a multi-line string containing important PVs
+    to be written to the mda file.
+
+    """
+    # Block Header
+    s = dedent("""\
+        #
+        # Process Variables:
+        # ------------------
+        #
+        """)
+    pvNames = ['mca1.R0LO', 'mca1.R0HI']
+
+    for pv in pvNames:
+        try:
+            s += '# {}: {}\n'.format(pv, extra_pvs[pv])
+        except:
+            pass
+
+    return s
+
 def writeAverages(mdaOutName, goodPixels, correls,
-                  k, e, trans, weights, averageMu, averageChi):
+                  k, e, trans, weights, averageMu, averageChi,
+                  extra_pvs):
     """Produces an output file containing averaged data and meta-information
     and writes this file to disk.
 
@@ -561,7 +584,16 @@ def writeAverages(mdaOutName, goodPixels, correls,
     # make a 10-at-a-time iterator; see examples in Python itertools documentation
     ten_of = lambda x: izip(*[chain(x, repeat(None, 9))]*10)
 
-    with open(mdaOutName.replace('.mda', '.asc'), 'w') as f:
+    asciiFilename = mdaOutName.replace('.mda', '.asc')
+    try:
+        open(asciiFilename, 'r')
+        file_exists = True
+    except IOError:
+        file_exists = False
+    if file_exists:
+        print 'File', asciiFilename, 'exists, aborting write...'
+        return
+    with open(asciiFilename, 'w') as f:
         # Header
         timestamp = time.asctime(time.localtime())
         print >>f, dedent("""\
@@ -613,11 +645,15 @@ def writeAverages(mdaOutName, goodPixels, correls,
         for items in ten_of(output):
             print >>f, '#',
             print >>f, '  '.join(items)
-    
-        print >>f, "#"
-        print >>f, "#"
+
+        print >>f, '#'
+
+        if extra_pvs != {}:
+            s = writePvBlock(extra_pvs)
+            print >>f, s,
 
         # write data
+        print >>f, '#'
         output = np.vstack((e, averageMu, trans[1:])).T
         np.savetxt(f, output, fmt='%14.6f %14.6f %14.6f %14.6f %14.6f %4.1f %14.6f',
             header = 'E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]' + \
