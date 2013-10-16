@@ -307,6 +307,7 @@ class MainFrame ( wx.Frame ):
 		self.Centre( wx.BOTH )
 		
 		# Connect Events
+		self.Bind( wx.EVT_CLOSE, self.OnClick_Exit )
 		self.Bind( wx.EVT_TOOL, self.OnClick_Load, id = id_load )
 		self.Bind( wx.EVT_TOOL, self.OnClick_Save, id = id_save )
 		self.Bind( wx.EVT_TOOL, self.OnClick_Unload, id = id_unload )
@@ -339,6 +340,9 @@ class MainFrame ( wx.Frame ):
 	
 	
 	# Virtual event handlers, overide them in your derived class
+	def OnClick_Exit( self, event ):
+		event.Skip()
+	
 	def OnClick_Load( self, event ):
 		event.Skip()
 	
@@ -348,8 +352,6 @@ class MainFrame ( wx.Frame ):
 	def OnClick_Unload( self, event ):
 		event.Skip()
 	
-	def OnClick_Exit( self, event ):
-		event.Skip()
 	
 	def OnCheckList_SpecSelect( self, event ):
 		event.Skip()
