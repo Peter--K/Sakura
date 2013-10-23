@@ -23,8 +23,8 @@ import os
 import glob
 import sys
 
-DLL_PATH = r"C:\Python27\Lib\site-packages\numpy\core"
-sys.path.append(DLL_PATH)
+#~ DLL_PATH = os.path.join(sys.exec_prefix, 'lib', 'site-packages', 'numpy', 'core')
+#~ sys.path.append(DLL_PATH)
 
 exec(open('version.py').read())
 
@@ -32,14 +32,16 @@ includes = []
 includes.append('numpy')
 includes.append('numpy.core')
 includes.append('scipy')
-includes.append('scipy.sparse.csgraph._validation')
-includes.append('logging') 
+includes.append('logging')
 includes.append('wx')
 includes.append('wx.*')
 
-excludes=['_ssl','ipython', 'pyreadline', 'doctest', 'locale', 'optparse',
-    'pickle', 'calendar']
-packages = []
+excludes = ['_ssl', 'ipython', 'tcl',
+            'PIL._imagingtk', 'PIL.ImageTk',
+            'qt', 'PyQt4Gui', 'Carbon', 'email', 'PySide',
+           ]
+
+packages = ['scipy.io']
 
 data_files = []
 data_folders = [('resources', 'resources')]
@@ -52,17 +54,11 @@ for folder, relative_path in data_folders:
             f2 = relative_path, [f1]
             data_files.append(f2)
 
-# The following dll is needed for GR's mkl-enabled numpy.
-# We'll try to do "proper" bundling and packaging with a minimal 32-bit
-# python+numpy+scipy+wxPython installation so this won't be available
-# and should be skipped.
-try:
-    data_files.append(('.', [os.path.join(DLL_PATH, 'libiomp5md.dll')]))
-except:
-    pass
 data_files.append(('.', ['gist_heat.cmap']))
  
-setup(windows = ['Sakura.py'],
+setup(\
+    #windows = ['Sakura.py'],
+    console = ['Sakura.py'],
     author = "Peter Kappen, Gary Ruben",
     author_email='sakura@synchrotron.org.au',
     version = __version__,
@@ -72,7 +68,7 @@ setup(windows = ['Sakura.py'],
         "optimize": 0,
         "packages": packages,
         "includes": includes,
-        #"excludes": excludes,
+        "excludes": excludes,
         "dll_excludes": ["MSVCP90.dll", "w9xpopen.exe"],
         "dist_dir": 'dist',
         #"bundle_files":2,

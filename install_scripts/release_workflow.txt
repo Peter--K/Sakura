@@ -1,0 +1,40 @@
+-   Specify a new version tag
+-   Update README.rst Version History section to contain tag reference and list of important changes
+-   Verify that all Copyright messages in the LICENSE file and .py files have the current year
+-   Update the version by updating version.py
+    Final run of unit tests/nose tests
+    Package versions on Windows and Mac:
+        Windows:
+            Bundling:
+            (We use py2exe for bundling)
+            - Install EPDFree 32bit in C:\Python_EPDFree32_7.3-2
+            - Open a console
+            - Update path to use the EPDFree Python:
+                ---
+                I use this batch file: python32.bat:
+                ---
+                @echo off
+                set PYTHONHOME=C:\Python_EPDFree32_7.3-2
+                set PATH=C:\Python_EPDFree32_7.3-2;%PATH%
+                ---
+            - Run py2exe from the setup.py directory:
+                C:\Users\gary\VeRSI\NeCTAR_AS_XAS\Sakura>python setup.py py2exe
+            - Test by running .\dist\Sakura.exe
+            
+            Packaging:
+            (We use innotools for packaging)
+            - Update install_scripts/Windows/sinspect.iss:
+                Update VERSION #define
+                Add any new source files to the [Files] section
+            - Compile the installer (Innotools Build|Compile option)
+            - Test by installing, running and uninstalling
+        Mac OSX
+            Update version in Platypus packager [Platypus | http://sveinbjorn.org/platypus]
+            Wrap SinSPECt in an application bundle using Platypus
+            Build an installer using mac Installer/PackageMaker:
+    Commit these changes:
+        $ git tag -a message
+    Verify that code is tagged at github project page
+-   Announce new version availability
+    Change version on synchrotron program landing page
+    Upload the new installer and zip file versions to the synchrotron website for download
