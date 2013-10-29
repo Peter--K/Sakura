@@ -122,7 +122,7 @@ class Pixel(object):
 
     def WeightSpectrum(self):
         # apply weight factor which was derived from relative edge step
-        self.weightedSpec = self.weightFactor * self.roiCorr
+        self.weightedSpec = self.weightFactor * self.roiCorrNorm
 
 
 class Detector(list):
