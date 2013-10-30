@@ -11,11 +11,11 @@
             - Open a console
             - Update path to use the EPDFree Python:
                 ---
-                I use this batch file: python32.bat:
+                I use this batch file: setup_python32_build_environment.bat:
                 ---
                 @echo off
                 set PYTHONHOME=C:\Python_EPDFree32_7.3-2
-                set PATH=C:\Python_EPDFree32_7.3-2;%PATH%
+                set PATH=C:\Python_EPDFree32_7.3-2;C:\Python_EPDFree32_7.3-2\Scripts;%PATH%
                 ---
             - Run py2exe from the setup.py directory:
                 C:\Users\gary\VeRSI\NeCTAR_AS_XAS\Sakura>python setup.py py2exe
