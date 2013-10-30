@@ -575,13 +575,24 @@ def writePvBlock(extra_pvs):
 
     return s
 
-def writeAverages(mdaOutName, goodPixels, correls,
-                  k, e, trans, weights, averageMu, averageChi,
-                  extra_pvs):
+def writeAverages(results, reader_type):
     """Produces an output file containing averaged data and meta-information
     and writes this file to disk.
 
+    Arguments:
+    results - Results() class instance
+    reader_type - String representing current reader module in use: 'gnc' or 'gmda'
+
     """
+    mdaOutName = results.fname
+    goodPixels = results.goodPixels
+    correls = results.correls
+    e = results.e
+    trans = results.trans
+    weights = results.weights
+    averageMu = results.averageMu
+    extra_pvs = results.extra_pvs
+
     # make a 10-at-a-time iterator; see examples in Python itertools documentation
     ten_of = lambda x: izip(*[chain(x, repeat(None, 9))]*10)
 
@@ -654,9 +665,27 @@ def writeAverages(mdaOutName, goodPixels, correls,
 
         print >>f, '#'
 
+        # Write PVs of interest
         if extra_pvs != {}:
             s = writePvBlock(extra_pvs)
             print >>f, s,
+
+        # Write other notes here
+        if reader_type == 'gnc':
+            # Write current ROIs if a mapping mode dataset
+            print >>f, dedent("""\
+                #
+                #
+                # ROI values:
+                # -----------
+                #
+                # roi_low:  {roi_low}
+                # roi_high: {roi_high}
+                #\
+                """.format(
+                    roi_low=results.det.roi_low,
+                    roi_high=results.det.roi_high
+                    ))
 
         # write data
         print >>f, '#'
