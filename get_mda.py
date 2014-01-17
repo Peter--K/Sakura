@@ -690,10 +690,13 @@ def writeAverages(results, reader_type):
         # write data
         print >>f, '#'
         output = np.vstack((e, averageMu, trans[1:])).T
-        np.savetxt(f, output, fmt='%14.6f %14.6f %14.6f %14.6f %14.6f %4.1f %14.6f',
-            header = 'E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]' + \
-                     '    I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg]')
-
+        print >>f, '# E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]' + \
+                     '    I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg]'
+        np.savetxt(f, output, fmt='%14.6f %14.6f %14.6f %14.6f %14.6f %4.1f %14.6f')
+        #    header = 'E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]' + \
+        #             '    I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg]')
+        print 'NUMPY version', np.__version__
+        
         print '... data saved.'
         message = os.path.basename(asciiFilename) + ' written'
         md = wx.MessageDialog(parent=None, message=message,
