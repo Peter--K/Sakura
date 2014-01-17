@@ -10,7 +10,7 @@
 #   Peter Kappen, XAS Beamline
 #   Gary Ruben, VeRSI (Victorian eResearch Strategic Initiative)
 #
-#   Synchrotron Light Source Australia, 2013
+#   Synchrotron Light Source Australia, 2013-2014
 
 # -*- coding: utf-8 -*-
 

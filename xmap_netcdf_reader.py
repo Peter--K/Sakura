@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2013 Synchrotron Light Source Australia Pty Ltd.
+# Copyright (c) 2013-2014 Synchrotron Light Source Australia Pty Ltd.
 # Released under the Modified BSD license
 # See LICENSE
 
