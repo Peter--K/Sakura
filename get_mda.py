@@ -161,7 +161,7 @@ def getData(fname):
     !! I0/1/2  are already normalised to t !!
 
     """
-    mda = readMDA.readMDA(fname, verbose=False)
+    mda = readMDA.readMDA(fname, verbose=True)
     scanData = mda[1]
     scanSize = scanData.npts
     try:
@@ -318,12 +318,14 @@ def getWeightFactors(det, e, e0, goodPixels):
     #   this function here with something like "self.weights = getWeightFactors(...)"
     #   and have one array returned into "self.weights"
     weights = np.zeros(len(det))
+    
 
     # use E0 + XXX eV to define start of fit range (depending on length of scan)
     #   end of fit range is simply end of scan (last index of "e")
     # use E0 - 10eV to do pre-edge fit in range [0 ; E0-10]eV
     e0Index = np.argmin(np.abs(e - e0))
     print 'E0 index = ', e0Index
+    print 'E0 =', e0
     startIndexPre = 0
     stopIndexPre = np.argmin(np.abs(e - (e0 - 10)))
     if max(e)-e0 > 100 :
@@ -334,17 +336,19 @@ def getWeightFactors(det, e, e0, goodPixels):
         startIndexPost = np.argmin(np.abs(e - (e0 + 25)))
     startIndexK = np.argmin(np.abs(e - (e0 + 15)))
     stopIndexPost = len(e) - 1
-
-    print 'E - E0 =', max(e)-e0    
+    
+    print 'start pre =', e[0]
+    print 'stop pre =', e[stopIndexPre]
+    print 'Emax - E0 =', max(e)-e0    
     print 'start post = ', e[startIndexPost]
     print 'stop post  = ', e[stopIndexPost]
     
     # first, set all weight factors to zero (user/mouse events may access weight factors
     #   in the GUI, so need at least something)
     for i in range(len(det)):
-        det[i].weightFactor = 0
-
-    # determine individual weight factors and write into "weights" array
+        det[i].weightFactor = 0.0
+    
+    ### determine individual weight factors and write into "weights" array
     m_e = 9.109381e-31  # kg
     hbar = 1.054572e-34  # Jsec = 6.582119e-16 eVsec
     ee = 1.602176e-19  # Asec , i.e., J/eV
@@ -360,7 +364,7 @@ def getWeightFactors(det, e, e0, goodPixels):
                                    stopIndexPost])  # mu(E') above edge
         fitparams = polyfit(x, yPost, 2)
         postEdgeCurve = polyval(fitparams, e)
-
+    
         # now fit the pre-edge using same algorithm
         yPre = np.ndarray.flatten(det[i].roiCorrNorm[startIndexPre:stopIndexPre])
         fitparams = polyfit(e[startIndexPre:stopIndexPre], yPre, 2)
@@ -370,24 +374,24 @@ def getWeightFactors(det, e, e0, goodPixels):
         w = (postEdgeCurve[e0Index] - preEdgeCurve[e0Index]) / \
             preEdgeCurve[e0Index]
         weights[i] = w
-
+    
         # while we have the fit in memory, extract something like "chi(k)" and
         #    write into detector Pixel Objects for use in the GUI
         postE = postEdgeCurve[startIndexPost:stopIndexPost]
             # fit(E') only above edge
         det[i].chi = (yPost - postE) / (postE)
         # use weighting with "w" to get consistent y-scale
-
+    
     # normalise weight factors to 1 (makes output ROI and TCR values less arbitrary)
     # First replace any infs with max value in remainder of array
     infmask = np.isinf(weights)
     weights[infmask] = np.nanmax(weights[~infmask])
     weights = weights / np.nanmax(weights)
-
+    
     # append weight factors as attributes to detector Pixels Objects
-    for i in goodPixels:
+    for i in goodPixels:        
         det[i].weightFactor = weights[i]
-
+    
     return weights ####, preEdgeCurve, postEdgeCurve
 
 
@@ -517,15 +521,32 @@ def getE0(e):
     # give preference to K, then L3, L2, L1 edges if more than one edge candidate found
     #
     #  sort by shells (K, L1/2/3) and get indices of items before sort;
-    #  then sort all three subarrays (elements, shells, edgeEnergies) accordingly
+    #  then reverse (L3/2/1, K)
+    #  and sort all three subarrays (elements, shells, edgeEnergies) accordingly
     sortIndices = sorted(range(len(result[1])), key=lambda x: result[1][x])
-    temp = []     # empty array
-    for i in range(len(result)):    # loop over subarrays;
-        for j in sortIndices:       # in each subarray, loop over items in order of sorted indices
-            temp.append(result[i][j])   # extract item using sort index and append to temporary list
-        result[i] = temp            # overwrite subarray with subarray sorted according to "shells"
-        temp = []
-            # empty out temp for next iteration in loop 'i'
+    sortIndices.reverse()
+    for j in range(len(result)) :                     ## result is a list containing 3 lists; len(result) is 3
+        result[j] = [result[j][i] for i in sortIndices]
+        
+    # take the list items that correspond to 'K' shells and put them up the front
+    #     this gives order K -> L3 -> L2 -> L1
+    where_k = np.where(np.asarray(result[1]) == 'K')[0]
+    for i in where_k :
+        result[0].insert( 0,result[0].pop() )
+        result[1].insert( 0,result[1].pop() )
+        result[2].insert( 0,result[2].pop() )
+    
+    print result
+    
+    
+    ##temp = []     # empty array
+    ##for i in range(len(result)):    # loop over subarrays;
+    ##    for j in sortIndices:       # in each subarray, loop over items in order of sorted indices
+    ##        temp.append(result[i][j])   # extract item using sort index and append to temporary list
+    ##    result[i] = temp            # overwrite subarray with subarray sorted according to "shells"
+    ##    temp = []
+    ##        # empty out temp for next iteration in loop 'i'
+
 
     return result
 
@@ -540,7 +561,6 @@ def getAverage(goodPixels, det):
     # goodPixels is designed to include index values <0 to mark bad pixels;
     #    thus, needs compressing out all indices <0 first before using in a loop
     goodPixels = np.compress(goodPixels >= 0, goodPixels)
-
     scanSize = len(det[0].fpeaks)   # choose a random pixel array to determine scan length
     averageMu = np.zeros(scanSize)
     averageChi = np.zeros(len(det[goodPixels[0]].chi))
@@ -549,7 +569,7 @@ def getAverage(goodPixels, det):
         averageChi = averageChi + det[i].chi
     averageMu = averageMu / len(goodPixels)
     averageChi = averageChi / len(goodPixels)
-
+    
     return averageMu, averageChi
 
 
@@ -575,13 +595,14 @@ def writePvBlock(extra_pvs):
 
     return s
 
-def writeAverages(results, reader_type):
+def writeAverages(results, reader_type, detSize):
     """Produces an output file containing averaged data and meta-information
     and writes this file to disk.
 
     Arguments:
     results - Results() class instance
     reader_type - String representing current reader module in use: 'gnc' or 'gmda'
+    detSize - number of detector pixels
 
     """
     mdaOutName = results.fname
@@ -593,9 +614,17 @@ def writeAverages(results, reader_type):
     averageMu = results.averageMu
     extra_pvs = results.extra_pvs
 
-    # make a 10-at-a-time iterator; see examples in Python itertools documentation
-    ten_of = lambda x: izip(*[chain(x, repeat(None, 9))]*10)
+    ## make a 10-at-a-time iterator; see examples in Python itertools documentation
+    ### ten_of = lambda x: izip(*[chain(x, repeat(None, 9))]*10)
 
+    # make an iterator to describe the detector array;
+    #   assume "rectangular shape" and backfill with "None" where there are not enough pixels;
+    #   e.g. if the detector is a detSize=26 element detector, then generate a 5x6 array
+    #        with the last row containing 1 value and four values reading "None"
+    # note that "numCol" needs to be integer for the iterable to work
+    numCols = int(np.round(np.sqrt(detSize)))
+    nPix_of = lambda x: izip(*[chain(x, repeat(None, (numCols-1) ))]*numCols)
+    
     asciiFilename = mdaOutName.replace('.mda', '.asc')
     try:
         open(asciiFilename, 'r')
@@ -632,11 +661,12 @@ def writeAverages(results, reader_type):
             # ----------------------------------------------
             #\
             """)
-        output = ['{:02d}'.format(i) if i >= 0 else '--' for i in goodPixels]
-        for items in ten_of(output):
+        
+        output = ['{:02d}'.format(i) if i >= 0 else '--' for i in goodPixels+1]
+        for items in nPix_of(output):
             print >>f, '#',
             print >>f, ' '.join(items)
-
+        
         # write matrix of correlation coefficients
         print >>f, dedent("""\
             #
@@ -646,10 +676,10 @@ def writeAverages(results, reader_type):
             #\
             """)
         output = ['{:>6.2f}'.format(i*100) for i in correls]
-        for items in ten_of(output):
+        for items in nPix_of(output):
             print >>f, '#',
             print >>f, '  '.join(items)
-
+        
         # write matrix of weight factors
         print >>f, dedent("""\
             #
@@ -659,12 +689,12 @@ def writeAverages(results, reader_type):
             #\
             """)
         output = ['{:>6.2f}'.format(i*100) for i in weights]
-        for items in ten_of(output):
+        for items in nPix_of(output):
             print >>f, '#',
             print >>f, '  '.join(items)
-
+        
         print >>f, '#'
-
+        
         # Write PVs of interest
         if extra_pvs != {}:
             s = writePvBlock(extra_pvs)
@@ -695,8 +725,6 @@ def writeAverages(results, reader_type):
         np.savetxt(f, output, fmt='%14.6f %14.6f %14.6f %14.6f %14.6f %4.1f %14.6f')
         #    header = 'E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]' + \
         #             '    I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg]')
-        print 'NUMPY version', np.__version__
-        
         print '... data saved.'
         message = os.path.basename(asciiFilename) + ' written'
         md = wx.MessageDialog(parent=None, message=message,

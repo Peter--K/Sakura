@@ -119,6 +119,7 @@ edgeEnergy ={
    
 #
 # edges accessible at the beamline (here AS-XAS beamline (4.9-40 keV))
+#    (note: M-edges of  Ac, Th, Pa, U  excluded)
 #
 edgesAvailable = ["Ti-K", "V-K", "Cr-K", "Mn-K", "Fe-K", "Co-K", "Ni-K",
                   "Cu-K", "Zn-K", "Ga-K", "As-K", "Se-K", "Br-K", "Kr-K",
