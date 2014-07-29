@@ -54,8 +54,8 @@ for folder, relative_path in data_folders:
             f2 = relative_path, [f1]
             data_files.append(f2)
 
-data_files.append(('.', ['gist_heat.cmap']))
- 
+# data_files.append(('.', ['gist_heat.cmap']))
+
 setup(\
     #windows = ['Sakura.py'],
     console = ['Sakura.py'],
