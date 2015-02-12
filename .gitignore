@@ -11,3 +11,4 @@ junk
 MapData
 .project
 .pydevproject
+*.exe
