@@ -9,6 +9,8 @@ class Config(object):
     def __init__(self):
         self.parser = cfgparse.ConfigParser()
         cfgfile = self.get_configpath()
+        print cfgfile
+        print '==========='
         self.cfgfile = cfgfile
         try:
             open(cfgfile)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- 
 
 ###########################################################################
-## Python code generated with wxFormBuilder (version Oct  8 2012)
+## Python code generated with wxFormBuilder (version Jun  5 2014)
 ## http://www.wxformbuilder.org/
 ##
 ## PLEASE DO "NOT" EDIT THIS FILE!
@@ -22,7 +22,7 @@ id_exit = 1003
 class MainFrame ( wx.Frame ):
 	
 	def __init__( self, parent ):
-		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"-- Sakura --", pos = wx.DefaultPosition, size = wx.Size( 998,699 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
+		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"-- Sakura --", pos = wx.DefaultPosition, size = wx.Size( 1018,858 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
 		
 		self.SetSizeHintsSz( wx.DefaultSize, wx.DefaultSize )
 		
@@ -42,11 +42,11 @@ class MainFrame ( wx.Frame ):
 		
 		self.m_toolBar1 = wx.ToolBar( self.m_ToolPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TB_HORIZONTAL )
 		self.m_toolBar1.SetToolBitmapSize( wx.Size( 16,16 ) )
-		self.m_toolBar1.AddLabelTool( id_load, u"Load", wx.Bitmap( u"resources/folder_vertical_open.png", wx.BITMAP_TYPE_ANY ), wx.NullBitmap, wx.ITEM_NORMAL, u"Load", wx.EmptyString, None ) 
+		self.m_LoadTool = self.m_toolBar1.AddLabelTool( id_load, u"Load", wx.Bitmap( u"resources/folder_vertical_open.png", wx.BITMAP_TYPE_ANY ), wx.NullBitmap, wx.ITEM_NORMAL, u"Load", wx.EmptyString, None )
 		
-		self.m_toolBar1.AddLabelTool( id_save, u"Save", wx.Bitmap( u"resources/disk.png", wx.BITMAP_TYPE_ANY ), wx.NullBitmap, wx.ITEM_NORMAL, u"Save", wx.EmptyString, None ) 
+		self.m_SaveTool = self.m_toolBar1.AddLabelTool( id_save, u"Save", wx.Bitmap( u"resources/disk.png", wx.BITMAP_TYPE_ANY ), wx.NullBitmap, wx.ITEM_NORMAL, u"Save", wx.EmptyString, None )
 		
-		self.m_toolBar1.AddLabelTool( id_unload, u"Unload", wx.Bitmap( u"resources/folder_vertical_torn.png", wx.BITMAP_TYPE_ANY ), wx.NullBitmap, wx.ITEM_NORMAL, u"Unload", wx.EmptyString, None ) 
+		self.m_UnloadTool = self.m_toolBar1.AddLabelTool( id_unload, u"Unload", wx.Bitmap( u"resources/folder_vertical_torn.png", wx.BITMAP_TYPE_ANY ), wx.NullBitmap, wx.ITEM_NORMAL, u"Unload", wx.EmptyString, None )
 		
 		self.m_toolBar1.Realize() 
 		
@@ -62,7 +62,7 @@ class MainFrame ( wx.Frame ):
 		
 		self.m_toolBar3 = wx.ToolBar( self.m_ToolPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TB_HORIZONTAL )
 		self.m_toolBar3.SetToolBitmapSize( wx.Size( 16,16 ) )
-		self.m_toolBar3.AddLabelTool( id_exit, u"Exit", wx.Bitmap( u"resources/door_in.png", wx.BITMAP_TYPE_ANY ), wx.NullBitmap, wx.ITEM_NORMAL, u"Exit", wx.EmptyString, None ) 
+		self.m_ExitTool = self.m_toolBar3.AddLabelTool( id_exit, u"Exit", wx.Bitmap( u"resources/door_in.png", wx.BITMAP_TYPE_ANY ), wx.NullBitmap, wx.ITEM_NORMAL, u"Exit", wx.EmptyString, None )
 		
 		self.m_toolBar3.Realize() 
 		
@@ -81,7 +81,7 @@ class MainFrame ( wx.Frame ):
 		self.m_checkList_Spectra = wx.CheckListBox( self.m_FormPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_checkList_SpectraChoices, 0 )
 		bSizer6.Add( self.m_checkList_Spectra, 2, wx.ALL, 5 )
 		
-		m_listBox_EdgeChoices = [ u"V-K", u"Cr-K", u"Mn-K", u"Fe-K", u"Co-K", u"Ni-K", u"Cu-K", u"Zn-K", u"Au-L3", u"Au-L2", u"Au-L1" ]
+		m_listBox_EdgeChoices = [ u"edge" ]
 		self.m_listBox_Edge = wx.ListBox( self.m_FormPanel, wx.ID_ANY, wx.DefaultPosition, wx.Size( -1,-1 ), m_listBox_EdgeChoices, 0 )
 		self.m_listBox_Edge.SetFont( wx.Font( wx.NORMAL_FONT.GetPointSize(), 70, 90, 90, False, wx.EmptyString ) )
 		
@@ -130,7 +130,21 @@ class MainFrame ( wx.Frame ):
 		sbFluoroDetectorSizer.Fit( self.m_DetectorPanel )
 		bLeftPanelSizer.Add( self.m_DetectorPanel, 0, wx.EXPAND |wx.ALL, 5 )
 		
-		
+		self.m_WeightFactorPanel = wx.Panel( self.m_LeftPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer18 = wx.BoxSizer( wx.HORIZONTAL )
+
+		m_radioBox1Choices = [ u"Edge step", u"TCR", u"=1" ]
+		self.m_radioBox1 = wx.RadioBox( self.m_WeightFactorPanel, wx.ID_ANY, u"Weight Factor", wx.DefaultPosition, wx.DefaultSize, m_radioBox1Choices, 3, wx.RA_SPECIFY_COLS )
+		self.m_radioBox1.SetSelection( 2 )
+		bSizer18.Add( self.m_radioBox1, 0, wx.ALL, 5 )
+
+
+		self.m_WeightFactorPanel.SetSizer( bSizer18 )
+		self.m_WeightFactorPanel.Layout()
+		bSizer18.Fit( self.m_WeightFactorPanel )
+		bLeftPanelSizer.Add( self.m_WeightFactorPanel, 1, wx.EXPAND |wx.ALL, 5 )
+
+
 		self.m_LeftPanel.SetSizer( bLeftPanelSizer )
 		self.m_LeftPanel.Layout()
 		bLeftPanelSizer.Fit( self.m_LeftPanel )
@@ -150,11 +164,11 @@ class MainFrame ( wx.Frame ):
 		self.m_AvgsPanel = wx.Panel( self.m_UpperNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL, u"m_AvgsPanel" )
 		bAvgsSizer = wx.BoxSizer( wx.HORIZONTAL )
 		
-		self.m_panelMuAverage = wx.Panel( self.m_AvgsPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
-		bAvgsSizer.Add( self.m_panelMuAverage, 1, wx.EXPAND |wx.ALL, 5 )
+		self.m_panelTopLeft = wx.Panel( self.m_AvgsPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bAvgsSizer.Add( self.m_panelTopLeft, 1, wx.EXPAND |wx.ALL, 5 )
 		
-		self.m_panelChiAverage = wx.Panel( self.m_AvgsPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
-		bAvgsSizer.Add( self.m_panelChiAverage, 1, wx.EXPAND |wx.ALL, 5 )
+		self.m_panelTopRight = wx.Panel( self.m_AvgsPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bAvgsSizer.Add( self.m_panelTopRight, 1, wx.EXPAND |wx.ALL, 5 )
 		
 		
 		self.m_AvgsPanel.SetSizer( bAvgsSizer )
@@ -277,7 +291,21 @@ class MainFrame ( wx.Frame ):
 		self.m_ChiPanel.Layout()
 		bSizer14.Fit( self.m_ChiPanel )
 		self.m_MuChiNotebook.AddPage( self.m_ChiPanel, u"Chi(k)", False )
-		
+		self.m_OverplotPanel = wx.Panel( self.m_MuChiNotebook, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL, u"m_OverplotPanel" )
+		bSizer141 = wx.BoxSizer( wx.HORIZONTAL )
+
+		self.m_OverplotLeftPanel = wx.Panel( self.m_OverplotPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer141.Add( self.m_OverplotLeftPanel, 1, wx.EXPAND |wx.ALL, 5 )
+
+		self.m_OverplotRightPanel = wx.Panel( self.m_OverplotPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer141.Add( self.m_OverplotRightPanel, 1, wx.EXPAND |wx.ALL, 5 )
+
+
+		self.m_OverplotPanel.SetSizer( bSizer141 )
+		self.m_OverplotPanel.Layout()
+		bSizer141.Fit( self.m_OverplotPanel )
+		self.m_MuChiNotebook.AddPage( self.m_OverplotPanel, u"MultiPlot", False )
+
 		bSizer7.Add( self.m_MuChiNotebook, 1, wx.EXPAND |wx.ALL, 0 )
 		
 		
@@ -308,19 +336,20 @@ class MainFrame ( wx.Frame ):
 		
 		# Connect Events
 		self.Bind( wx.EVT_CLOSE, self.OnClick_Exit )
-		self.Bind( wx.EVT_TOOL, self.OnClick_Load, id = id_load )
-		self.Bind( wx.EVT_TOOL, self.OnClick_Save, id = id_save )
-		self.Bind( wx.EVT_TOOL, self.OnClick_Unload, id = id_unload )
-		self.Bind( wx.EVT_TOOL, self.OnClick_Exit, id = id_exit )
+		self.Bind( wx.EVT_TOOL, self.OnClick_Load, id = self.m_LoadTool.GetId() )
+		self.Bind( wx.EVT_TOOL, self.OnClick_Save, id = self.m_SaveTool.GetId() )
+		self.Bind( wx.EVT_TOOL, self.OnClick_Unload, id = self.m_UnloadTool.GetId() )
+		self.Bind( wx.EVT_TOOL, self.OnClick_Exit, id = self.m_ExitTool.GetId() )
 		self.m_checkList_Spectra.Bind( wx.EVT_LISTBOX, self.OnCheckList_SpecSelect )
 		self.m_checkList_Spectra.Bind( wx.EVT_CHECKLISTBOX, self.OnCheckList_SpecToggle )
 		self.m_listBox_Edge.Bind( wx.EVT_LISTBOX, self.OnList_EdgeSelect )
 		self.m_radioBtn_Correl.Bind( wx.EVT_RADIOBUTTON, self.OnRadioBtn_Correl )
 		self.m_radioBtn_Weights.Bind( wx.EVT_RADIOBUTTON, self.OnRadioBtn_Weights )
 		self.m_radioBtn_DetInt.Bind( wx.EVT_RADIOBUTTON, self.OnRadioBtn_TCR )
+		self.m_radioBox1.Bind( wx.EVT_RADIOBOX, self.OnRadioBoxBtn_WeightFactor )
 		self.m_UpperNotebook.Bind( wx.EVT_NOTEBOOK_PAGE_CHANGING, self.OnChanging_UpperNotebook )
-		self.m_panelMuAverage.Bind( wx.EVT_SIZE, self.OnSize_MuAverageCanvas )
-		self.m_panelChiAverage.Bind( wx.EVT_SIZE, self.OnSize_ChiAverageCanvas )
+		self.m_panelTopLeft.Bind( wx.EVT_SIZE, self.OnSize_MuAverageCanvas )
+		self.m_panelTopRight.Bind( wx.EVT_SIZE, self.OnSize_ChiAverageCanvas )
 		self.m_SpectrumPlotPanel.Bind( wx.EVT_SIZE, self.OnSize_SpectrumPlotCanvas )
 		self.m_RoiLowSlider.Bind( wx.EVT_SCROLL, self.OnSetRoi )
 		self.m_RoiLowSpinCtrl.Bind( wx.EVT_SPINCTRL, self.OnSetRoi )
@@ -334,7 +363,9 @@ class MainFrame ( wx.Frame ):
 		self.m_MuRightPanel.Bind( wx.EVT_SIZE, self.OnSize_MuRightCanvas )
 		self.m_ChiLeftPanel.Bind( wx.EVT_SIZE, self.OnSize_ChiLeftCanvas )
 		self.m_ChiRightPanel.Bind( wx.EVT_SIZE, self.OnSize_ChiRightCanvas )
-	
+		self.m_OverplotLeftPanel.Bind( wx.EVT_SIZE, self.OnSize_OverplotLeftCanvas )
+		self.m_OverplotRightPanel.Bind( wx.EVT_SIZE, self.OnSize_OverplotRightCanvas )
+
 	def __del__( self ):
 		pass
 	
@@ -371,6 +402,9 @@ class MainFrame ( wx.Frame ):
 	def OnRadioBtn_TCR( self, event ):
 		event.Skip()
 	
+	def OnRadioBoxBtn_WeightFactor( self, event ):
+		event.Skip()
+
 	def OnChanging_UpperNotebook( self, event ):
 		event.Skip()
 	
@@ -413,6 +447,12 @@ class MainFrame ( wx.Frame ):
 	def OnSize_ChiRightCanvas( self, event ):
 		event.Skip()
 	
+	def OnSize_OverplotLeftCanvas( self, event ):
+		event.Skip()
+
+	def OnSize_OverplotRightCanvas( self, event ):
+		event.Skip()
+
 	def m_splitter1OnIdle( self, event ):
 		self.m_splitter1.SetSashPosition( 300 )
 		self.m_splitter1.Unbind( wx.EVT_IDLE )

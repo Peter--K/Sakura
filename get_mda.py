@@ -55,6 +55,14 @@ class pixel(object):
         self.speaks = np.divide(np.ndarray.flatten(self.speaks), tsample)
         self.roi = np.divide(np.ndarray.flatten(self.roi), tsample)
 
+    def ICRCorr(self, fpeaks, ICRCorrParams):
+        """apply dead time correction to ICR (fpeaks)
+        for better normalisation"""
+        self.fpeaksCorr = sum(
+            [(fpeaks**i) * ICRCorrParams[i] for i in np.arange(4)]
+        )
+        print ICRCorrParams
+
     def GetDead(self, fpeaks, speaks):
         """get detector dead time parameter 'tau' """
         self.tau = fpeaks.astype(float) / speaks
@@ -85,14 +93,17 @@ def makeDet(detSize, scanSize):
     return det
 
 
-def detDeadCorr(det, goodPixels):
+def detDeadCorr(det, goodPixels, ICRCorrParams):
     """Correct dead time ("tau") for each detector pixel
 
     """
     goodPixels = np.compress(goodPixels >= 0, goodPixels)
     for i in goodPixels:
+        # det[i].ICRCorr(det[i].fpeaks, ICRCorrParams[i])
+        # det[i].GetDead(det[i].fpeaksCorr, det[i].speaks)
         det[i].GetDead(det[i].fpeaks, det[i].speaks)
         det[i].DeadCorr(det[i].tau, det[i].roi)
+    print i
 
 
 def searchStr(f, search):
@@ -236,7 +247,7 @@ def getGoodPixels(det, detSize):
 
     # ------------------------------------------------------------------------
     # test for bad pixels -- Step 1:
-    #    all pixels that are defunct (average <= 10 cts/sec) are excluded
+    #    all pixels that are defunct (average ROI <= 10 cts/sec) are excluded
     # ------------------------------------------------------------------------
     tempROIaverage = np.zeros(detSize)
     for i in range(detSize):
@@ -249,7 +260,7 @@ def getGoodPixels(det, detSize):
 
     # ------------------------------------------------------------------------
     # test for bad pixels -- Step 2:
-    #    high TCR pixels
+    #    very high and very low TCR pixels
     # ------------------------------------------------------------------------
     #
     # above approach works well for defunct (low count rate) detector
@@ -259,19 +270,28 @@ def getGoodPixels(det, detSize):
     #	if TCR average of pixel > 3-times average TCR-average, then exclude
     #   the factor "3" is stored in "cutOffFactor = 3"; *** modify this if required ***
     #
-    cutOffFactor = 3
+    highCutOffFactor = 3
+    lowCutOffFactor  = 0.05
     remainPixels = np.compress(goodPixels >= 0, goodPixels)
     tempTCRaverage = []
     for i in remainPixels:
         tempTCRaverage = np.append(tempTCRaverage, np.mean(det[i].fpeaks))
+
     badTCRpixels = np.where(
-        tempTCRaverage > cutOffFactor * np.mean(tempTCRaverage))
+        tempTCRaverage > highCutOffFactor * np.mean(tempTCRaverage))
     goodPixels[remainPixels[badTCRpixels]] = -2
     excludeForeverPixels = np.append(excludeForeverPixels, badTCRpixels)
     print 'exclude forever (mark red): ', excludeForeverPixels
 
+    badTCRpixels = np.where(
+        tempTCRaverage < lowCutOffFactor * np.mean(tempTCRaverage))
+    goodPixels[remainPixels[badTCRpixels]] = -2
+
+    excludeForeverPixels = np.append(excludeForeverPixels, remainPixels[badTCRpixels])
+
+
     # ------------------------------------------------------------------------
-    # test for bad pixels -- Step 3:
+    # test for bad pixels -- Step 4:
     #    SlowPeaks have zero values
     # ------------------------------------------------------------------------
     # problematic are also pixels that show Zeros in some of the SlowPeaks
@@ -283,8 +303,18 @@ def getGoodPixels(det, detSize):
     #	 count in the background before the edge in low-TCR scenarios)
     #
     #
-#     for i in goodPixels:
-#         det[i].speaks[np.where(det[i].speaks == 0)] = 1
+    for i in goodPixels :
+        det[i].speaks[np.where(det[i].speaks == 0)] = 1
+
+
+    #manually removed pixels (cheap hack to save time) -- 15/3/2015
+    #alsoExcludePixels = np.asarray( [8,19, 89,98, 15,24,26,35] )
+    #excludeForeverPixels = np.append(excludeForeverPixels, alsoExcludePixels )
+    #goodPixels[ alsoExcludePixels ] = -2
+
+
+    print 'exclude forever (mark red): ', excludeForeverPixels
+
 
     return goodPixels, excludeForeverPixels
 
@@ -301,7 +331,7 @@ def normaliseI0(det, goodPixels, i0):
         det[i].NormI0(i0)
 
 
-def getWeightFactors(det, e, e0, goodPixels):
+def getWeightFactors(det, e, e0, goodPixels, TCRaverage, ROIaverage, weightType=None):
     """
     Run through all detector pixels and determine a weight factor
               (= edge-step / pre-edge-background-intensity)
@@ -318,72 +348,89 @@ def getWeightFactors(det, e, e0, goodPixels):
     #   this function here with something like "self.weights = getWeightFactors(...)"
     #   and have one array returned into "self.weights"
     weights = np.zeros(len(det))
-    
 
-    # use E0 + XXX eV to define start of fit range (depending on length of scan)
-    #   end of fit range is simply end of scan (last index of "e")
-    # use E0 - 10eV to do pre-edge fit in range [0 ; E0-10]eV
-    e0Index = np.argmin(np.abs(e - e0))
-    print 'E0 index = ', e0Index
-    print 'E0 =', e0
-    startIndexPre = 0
-    stopIndexPre = np.argmin(np.abs(e - (e0 - 10)))
-    if max(e)-e0 > 100 :
-        startIndexPost = np.argmin(np.abs(e - (e0 + 50)))
-    elif max(e)-e0 < 70 :
-        startIndexPost = np.argmin(np.abs(e - (e0 + 15)))
-    else :
-        startIndexPost = np.argmin(np.abs(e - (e0 + 25)))
-    startIndexK = np.argmin(np.abs(e - (e0 + 15)))
-    stopIndexPost = len(e) - 1
-    
-    print 'start pre =', e[0]
-    print 'stop pre =', e[stopIndexPre]
-    print 'Emax - E0 =', max(e)-e0    
-    print 'start post = ', e[startIndexPost]
-    print 'stop post  = ', e[stopIndexPost]
-    
     # first, set all weight factors to zero (user/mouse events may access weight factors
     #   in the GUI, so need at least something)
     for i in range(len(det)):
         det[i].weightFactor = 0.0
-    
-    ### determine individual weight factors and write into "weights" array
-    m_e = 9.109381e-31  # kg
-    hbar = 1.054572e-34  # Jsec = 6.582119e-16 eVsec
-    ee = 1.602176e-19  # Asec , i.e., J/eV
-    x = e[startIndexPost:stopIndexPost]    # E' for region above edge
-    k = np.sqrt(2 * m_e * (x - e0) * ee) / hbar * 1e-10     # k in A^-1 for
-                                                            # the postEdge region
-    # The following is a bit of a cheap hack; we need to make "k" available to the GUI;
-    # here we use the first detector Pixel Object as a vessel to transport "k" from this
-    # module to the GUI "sakura[...].py"; this is not elegant, but it works
-    det[0].k = k
-    for i in goodPixels:
-        yPost = np.ndarray.flatten(det[i].roiCorrNorm[startIndexPost:
-                                   stopIndexPost])  # mu(E') above edge
-        fitparams = polyfit(x, yPost, 2)
-        postEdgeCurve = polyval(fitparams, e)
-    
-        # now fit the pre-edge using same algorithm
-        yPre = np.ndarray.flatten(det[i].roiCorrNorm[startIndexPre:stopIndexPre])
-        fitparams = polyfit(e[startIndexPre:stopIndexPre], yPre, 2)
-        preEdgeCurve = polyval(fitparams, e)
-        #preEdgeAverage = np.mean( det[i].roiCorr[startIndexPre:stopIndexPre] )
-        #w = ( postEdgeCurve[e0Index] - preEdgeAverage ) / preEdgeAverage
-        w = (postEdgeCurve[e0Index] - preEdgeCurve[e0Index]) / \
-            preEdgeCurve[e0Index]
-        weights[i] = w
-    
-        # while we have the fit in memory, extract something like "chi(k)" and
-        #    write into detector Pixel Objects for use in the GUI
-        postE = postEdgeCurve[startIndexPost:stopIndexPost]
-            # fit(E') only above edge
-        det[i].chi = (yPost - postE) / (postE)
-        # use weighting with "w" to get consistent y-scale
-    
-    # normalise weight factors to 1 (makes output ROI and TCR values less arbitrary)
-    # First replace any infs with max value in remainder of array
+
+    if weightType is not None :
+        # use E0 + XXX eV to define start of fit range (depending on length of scan)
+        #   end of fit range is simply end of scan (last index of "e")
+        # use E0 - 10eV to do pre-edge fit in range [0 ; E0-10]eV
+        e0Index = np.argmin(np.abs(e - e0))
+        print 'E0 index = ', e0Index
+        print 'E0 =', e0
+        startIndexPre = 0
+        stopIndexPre = np.argmin(np.abs(e - (e0 - 10)))
+        if max(e)-e0 > 100 :
+            startIndexPost = np.argmin(np.abs(e - (e0 + 50)))
+        elif max(e)-e0 < 70 :
+            startIndexPost = np.argmin(np.abs(e - (e0 + 15)))
+        else :
+            startIndexPost = np.argmin(np.abs(e - (e0 + 25)))
+        startIndexK = np.argmin(np.abs(e - (e0 + 15)))
+        stopIndexPost = len(e) - 1
+
+        print 'start pre =', e[0]
+        print 'stop pre =', e[stopIndexPre]
+        print 'Emax - E0 =', max(e)-e0
+        print 'start post = ', e[startIndexPost]
+        print 'stop post  = ', e[stopIndexPost]
+
+        ### determine individual weight factors and write into "weights" array
+        m_e = 9.109381e-31  # kg
+        hbar = 1.054572e-34  # Jsec = 6.582119e-16 eVsec
+        ee = 1.602176e-19  # Asec , i.e., J/eV
+        x = e[startIndexPost:stopIndexPost]    # E' for region above edge
+        k = np.sqrt(2 * m_e * (x - e0) * ee) / hbar * 1e-10     # k in A^-1 for
+                                                                # the postEdge region
+        # The following is a bit of a cheap hack; we need to make "k" available to the GUI;
+        # here we use the first detector Pixel Object as a vessel to transport "k" from this
+        # module to the GUI "sakura[...].py"; this is not elegant, but it works
+        det[0].k = k
+        for i in goodPixels:
+            yPost = np.ndarray.flatten(det[i].roiCorrNorm[startIndexPost:
+                                       stopIndexPost])  # mu(E') above edge
+            fitparams = polyfit(x, yPost, 2)
+            postEdgeCurve = polyval(fitparams, e)
+
+            # now fit the pre-edge (here linear fit)
+            yPre = np.ndarray.flatten(det[i].roiCorrNorm[startIndexPre:stopIndexPre])
+            fitparams = polyfit(e[startIndexPre:stopIndexPre], yPre, 1)
+            preEdgeCurve = polyval(fitparams, e)
+            #preEdgeAverage = np.mean( det[i].roiCorr[startIndexPre:stopIndexPre] )
+            #w = ( postEdgeCurve[e0Index] - preEdgeAverage ) / preEdgeAverage
+            w = (postEdgeCurve[e0Index] - preEdgeCurve[e0Index]) / \
+                preEdgeCurve[e0Index]
+
+            weights[i] = w
+            det[i].postEdgeCurve = postEdgeCurve
+            det[i].preEdgeCurve = preEdgeCurve
+
+            # while we have the fit in memory, extract something like "chi(k)" and
+            #    write into detector Pixel Objects for use in the GUI
+            postE = postEdgeCurve[startIndexPost:stopIndexPost]
+                # fit(E') only above edge
+            det[i].chi = (yPost - postE) / (postE)
+            # use weighting with "w" to get consistent y-scale
+
+        # normalise weight factors to 1 (makes output ROI and TCR values less arbitrary)
+        # First replace any infs with max value in remainder of array
+
+    if weightType == "TCR" :
+        weights = TCRaverage
+        nanmask = np.isnan(weights)
+        weights[nanmask] = 0
+        print "TCR"
+    elif weightType == "=1" :
+        weights[:] = 1
+        print "=1"
+    elif weightType is None :
+        weights[:] = 1
+        print "none"
+
+    # normalise weight factors to maximum=1
     infmask = np.isinf(weights)
     weights[infmask] = np.nanmax(weights[~infmask])
     weights = weights / np.nanmax(weights)
@@ -614,6 +661,10 @@ def writeAverages(results, reader_type, detSize):
     averageMu = results.averageMu
     extra_pvs = results.extra_pvs
 
+    print ''
+    print 'checksum: ',np.average(averageMu)
+
+
     ## make a 10-at-a-time iterator; see examples in Python itertools documentation
     ### ten_of = lambda x: izip(*[chain(x, repeat(None, 9))]*10)
 
@@ -662,7 +713,7 @@ def writeAverages(results, reader_type, detSize):
             #\
             """)
         
-        output = ['{:02d}'.format(i) if i >= 0 else '--' for i in goodPixels+1]
+        output = ['{:02d}'.format(i) if i > 0 else '--' for i in goodPixels+1]
         for items in nPix_of(output):
             print >>f, '#',
             print >>f, ' '.join(items)
@@ -726,10 +777,14 @@ def writeAverages(results, reader_type, detSize):
         #    header = 'E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]' + \
         #             '    I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg]')
         print '... data saved.'
+
         message = os.path.basename(asciiFilename) + ' written'
         md = wx.MessageDialog(parent=None, message=message,
             caption='File saved', style=wx.OK)
         md.ShowModal()
+
+
+
 
 
 def notepad_gmda():
