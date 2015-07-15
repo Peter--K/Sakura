@@ -99,9 +99,15 @@ def detDeadCorr(det, goodPixels, ICRCorrParams):
     """
     goodPixels = np.compress(goodPixels >= 0, goodPixels)
     for i in goodPixels:
-        # det[i].ICRCorr(det[i].fpeaks, ICRCorrParams[i])
-        # det[i].GetDead(det[i].fpeaksCorr, det[i].speaks)
-        det[i].GetDead(det[i].fpeaks, det[i].speaks)
+        ### DEAD TIME CORRECTION ###
+        # use the next two lines for NEW DTC
+        det[i].ICRCorr(det[i].fpeaks, ICRCorrParams[i])
+        det[i].GetDead(det[i].fpeaksCorr, det[i].speaks)
+
+        # use next one line of OLD DTC
+        #det[i].GetDead(det[i].fpeaks, det[i].speaks)
+
+        # don't modify line below
         det[i].DeadCorr(det[i].tau, det[i].roi)
     print i
 
@@ -418,12 +424,20 @@ def getWeightFactors(det, e, e0, goodPixels, TCRaverage, ROIaverage, weightType=
         # normalise weight factors to 1 (makes output ROI and TCR values less arbitrary)
         # First replace any infs with max value in remainder of array
 
-    if weightType == "TCR" :
+    # weightType can be integer 0, 1, or 2  [see user GUI "Weight Factor RadioBox"
+    #   0 = "Edge Step"
+    #   1 = "TCR"
+    #   2 = " =1 "
+    #
+    #  "Edge Step" was already calculated, so assume it is this option and
+    #    go into the if-elif statement on that assumption
+    #
+    if weightType == 1 :
         weights = TCRaverage
         nanmask = np.isnan(weights)
         weights[nanmask] = 0
         print "TCR"
-    elif weightType == "=1" :
+    elif weightType == 2 :
         weights[:] = 1
         print "=1"
     elif weightType is None :

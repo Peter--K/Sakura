@@ -22,7 +22,7 @@ id_exit = 1003
 class MainFrame ( wx.Frame ):
 	
 	def __init__( self, parent ):
-		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"-- Sakura --", pos = wx.DefaultPosition, size = wx.Size( 1018,858 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
+		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"-- Sakura --", pos = wx.DefaultPosition, size = wx.Size( 1018,910 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
 		
 		self.SetSizeHintsSz( wx.DefaultSize, wx.DefaultSize )
 		
@@ -79,7 +79,7 @@ class MainFrame ( wx.Frame ):
 		
 		m_checkList_SpectraChoices = []
 		self.m_checkList_Spectra = wx.CheckListBox( self.m_FormPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_checkList_SpectraChoices, 0 )
-		bSizer6.Add( self.m_checkList_Spectra, 2, wx.ALL, 5 )
+		bSizer6.Add( self.m_checkList_Spectra, 1, wx.ALL, 5 )
 		
 		m_listBox_EdgeChoices = [ u"edge" ]
 		self.m_listBox_Edge = wx.ListBox( self.m_FormPanel, wx.ID_ANY, wx.DefaultPosition, wx.Size( -1,-1 ), m_listBox_EdgeChoices, 0 )
@@ -91,7 +91,7 @@ class MainFrame ( wx.Frame ):
 		self.m_FormPanel.SetSizer( bSizer6 )
 		self.m_FormPanel.Layout()
 		bSizer6.Fit( self.m_FormPanel )
-		bLeftPanelSizer.Add( self.m_FormPanel, 1, wx.EXPAND |wx.ALL, 5 )
+		bLeftPanelSizer.Add( self.m_FormPanel, 0, wx.EXPAND |wx.ALL, 5 )
 		
 		self.m_DetectorPanel = wx.Panel( self.m_LeftPanel, wx.ID_ANY, wx.DefaultPosition, wx.Size( -1,-1 ), wx.TAB_TRAVERSAL )
 		sbFluoroDetectorSizer = wx.StaticBoxSizer( wx.StaticBox( self.m_DetectorPanel, wx.ID_ANY, u"Detector" ), wx.VERTICAL )
@@ -142,7 +142,21 @@ class MainFrame ( wx.Frame ):
 		self.m_WeightFactorPanel.SetSizer( bSizer18 )
 		self.m_WeightFactorPanel.Layout()
 		bSizer18.Fit( self.m_WeightFactorPanel )
-		bLeftPanelSizer.Add( self.m_WeightFactorPanel, 1, wx.EXPAND |wx.ALL, 5 )
+		bLeftPanelSizer.Add( self.m_WeightFactorPanel, 0, wx.EXPAND |wx.ALL, 5 )
+
+		self.m_DeadTimePanel = wx.Panel( self.m_LeftPanel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
+		bSizer17 = wx.BoxSizer( wx.HORIZONTAL )
+
+		m_radioBox2Choices = [ u"ICR_corr / OCR", u"( ICR / OCR )" ]
+		self.m_radioBox2 = wx.RadioBox( self.m_DeadTimePanel, wx.ID_ANY, u"Dead-Time Correction", wx.DefaultPosition, wx.DefaultSize, m_radioBox2Choices, 2, wx.RA_SPECIFY_COLS )
+		self.m_radioBox2.SetSelection( 0 )
+		bSizer17.Add( self.m_radioBox2, 0, wx.ALL, 5 )
+
+
+		self.m_DeadTimePanel.SetSizer( bSizer17 )
+		self.m_DeadTimePanel.Layout()
+		bSizer17.Fit( self.m_DeadTimePanel )
+		bLeftPanelSizer.Add( self.m_DeadTimePanel, 0, wx.EXPAND |wx.ALL, 5 )
 
 
 		self.m_LeftPanel.SetSizer( bLeftPanelSizer )
@@ -347,6 +361,7 @@ class MainFrame ( wx.Frame ):
 		self.m_radioBtn_Weights.Bind( wx.EVT_RADIOBUTTON, self.OnRadioBtn_Weights )
 		self.m_radioBtn_DetInt.Bind( wx.EVT_RADIOBUTTON, self.OnRadioBtn_TCR )
 		self.m_radioBox1.Bind( wx.EVT_RADIOBOX, self.OnRadioBoxBtn_WeightFactor )
+		self.m_radioBox2.Bind( wx.EVT_RADIOBOX, self.OnRadioBoxBtn_DeadTime )
 		self.m_UpperNotebook.Bind( wx.EVT_NOTEBOOK_PAGE_CHANGING, self.OnChanging_UpperNotebook )
 		self.m_panelTopLeft.Bind( wx.EVT_SIZE, self.OnSize_MuAverageCanvas )
 		self.m_panelTopRight.Bind( wx.EVT_SIZE, self.OnSize_ChiAverageCanvas )
@@ -403,6 +418,9 @@ class MainFrame ( wx.Frame ):
 		event.Skip()
 	
 	def OnRadioBoxBtn_WeightFactor( self, event ):
+		event.Skip()
+
+	def OnRadioBoxBtn_DeadTime( self, event ):
 		event.Skip()
 
 	def OnChanging_UpperNotebook( self, event ):
