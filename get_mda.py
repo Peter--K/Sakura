@@ -61,7 +61,6 @@ class pixel(object):
         self.fpeaksCorr = sum(
             [(fpeaks**i) * ICRCorrParams[i] for i in np.arange(4)]
         )
-        print ICRCorrParams
 
     def GetDead(self, fpeaks, speaks):
         """get detector dead time parameter 'tau' """
@@ -93,6 +92,37 @@ def makeDet(detSize, scanSize):
     return det
 
 
+def readICRParams(selection, e, threshold, detSize, home_path):
+    """Reads in detector deadtime parameter file to correct ICR
+
+    Parameters:
+      selection = type of dead-time correction;
+                  0 = ICR_correct / OCR     (preferred option; default; see GUI)
+                  1 = ICR / OCR             ( = FastPeaks / SlowPeaks)
+      e = energy axis
+      threshold = cut-off for low-energy / high-energy detector mode
+      detSize = number of detector pixels
+      home_path = SAKURA_HOME_PATH
+    Returns:
+    """
+    if detSize == 100 :
+        filename = "100eleICRcorrect"
+    elif self.detSize == 36 :
+        filename = "36eleICRcorrect"
+
+    if selection == 0 :
+        if e[0] < threshold :
+            filename = filename + "-lowE.ini"
+        else :
+            filename = filename + "-highE.ini"
+    elif selection == 1 :
+        filename = filename + "-FPEAKS.ini"
+
+    ICRCorrParams = np.loadtxt(home_path+"\\"+filename)
+
+    return ICRCorrParams
+
+
 def detDeadCorr(det, goodPixels, ICRCorrParams):
     """Correct dead time ("tau") for each detector pixel
 
@@ -109,6 +139,7 @@ def detDeadCorr(det, goodPixels, ICRCorrParams):
 
         # don't modify line below
         det[i].DeadCorr(det[i].tau, det[i].roi)
+    print 'ICR correction paramgers (Pixel #0):', ICRCorrParams[0]
     print i
 
 
@@ -201,7 +232,7 @@ def getData(fname):
         except:
             pass
 
-    ts = trans[pvColumnNames.index('scaler1.T')]    # get the sample time
+    ts = trans[pvColumnNames.index('scaler1.T')]    # get the sample time "t_s"
     e = trans[pvColumnNames.index('EncEnergy:ActPos')] * 1000.0   # Energy axis (in eV !!)
 
     # normalise I0, I1, I2 to sample_time ts (use string "scaler1:" as identifier)
