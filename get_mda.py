@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 #
 # careful with the variable "goodPixels";
 #   * we have "self.goodPixels" in the GUI code which is managed over there
@@ -18,6 +16,7 @@
 
 
 import os
+import os.path
 import numpy as np
 import readMDA
 #import pylab as pl
@@ -118,7 +117,7 @@ def readICRParams(selection, e, threshold, detSize, home_path):
     elif selection == 1 :
         filename = filename + "-FPEAKS.ini"
 
-    ICRCorrParams = np.loadtxt(home_path+"\\"+filename)
+    ICRCorrParams = np.loadtxt(os.path.join(home_path, filename))
 
     return ICRCorrParams
 
@@ -202,7 +201,7 @@ def getData(fname):
     """Extract data from mda-ASCII file and distribute into Pixel objects
 
     Returns:
-    XAS scan data in a detector 'object' (variable "det") energy axis, 
+    XAS scan data in a detector 'object' (variable "det") energy axis,
     transmission data array and detector filled with fluo data
     (detector object simply full of '0' values if no fluorescence data available)
     Transmission data in "trans" comprises encoder_E, I0/1/2, sample_time, encoder_angle
@@ -479,11 +478,11 @@ def getWeightFactors(det, e, e0, goodPixels, TCRaverage, ROIaverage, weightType=
     infmask = np.isinf(weights)
     weights[infmask] = np.nanmax(weights[~infmask])
     weights = weights / np.nanmax(weights)
-    
+
     # append weight factors as attributes to detector Pixels Objects
-    for i in goodPixels:        
+    for i in goodPixels:
         det[i].weightFactor = weights[i]
-    
+
     return weights ####, preEdgeCurve, postEdgeCurve
 
 
@@ -619,7 +618,7 @@ def getE0(e):
     sortIndices.reverse()
     for j in range(len(result)) :                     ## result is a list containing 3 lists; len(result) is 3
         result[j] = [result[j][i] for i in sortIndices]
-        
+
     # take the list items that correspond to 'K' shells and put them up the front
     #     this gives order K -> L3 -> L2 -> L1
     where_k = np.where(np.asarray(result[1]) == 'K')[0]
@@ -627,10 +626,10 @@ def getE0(e):
         result[0].insert( 0,result[0].pop() )
         result[1].insert( 0,result[1].pop() )
         result[2].insert( 0,result[2].pop() )
-    
+
     print result
-    
-    
+
+
     ##temp = []     # empty array
     ##for i in range(len(result)):    # loop over subarrays;
     ##    for j in sortIndices:       # in each subarray, loop over items in order of sorted indices
@@ -661,7 +660,7 @@ def getAverage(goodPixels, det):
         averageChi = averageChi + det[i].chi
     averageMu = averageMu / len(goodPixels)
     averageChi = averageChi / len(goodPixels)
-    
+
     return averageMu, averageChi
 
 
@@ -720,7 +719,7 @@ def writeAverages(results, reader_type, detSize):
     # note that "numCol" needs to be integer for the iterable to work
     numCols = int(np.round(np.sqrt(detSize)))
     nPix_of = lambda x: izip(*[chain(x, repeat(None, (numCols-1) ))]*numCols)
-    
+
     asciiFilename = mdaOutName.replace('.mda', '.asc')
     try:
         open(asciiFilename, 'r')
@@ -757,12 +756,12 @@ def writeAverages(results, reader_type, detSize):
             # ----------------------------------------------
             #\
             """)
-        
+
         output = ['{:02d}'.format(i) if i > 0 else '--' for i in goodPixels+1]
         for items in nPix_of(output):
             print >>f, '#',
             print >>f, ' '.join(items)
-        
+
         # write matrix of correlation coefficients
         print >>f, dedent("""\
             #
@@ -775,7 +774,7 @@ def writeAverages(results, reader_type, detSize):
         for items in nPix_of(output):
             print >>f, '#',
             print >>f, '  '.join(items)
-        
+
         # write matrix of weight factors
         print >>f, dedent("""\
             #
@@ -788,9 +787,9 @@ def writeAverages(results, reader_type, detSize):
         for items in nPix_of(output):
             print >>f, '#',
             print >>f, '  '.join(items)
-        
+
         print >>f, '#'
-        
+
         # Write PVs of interest
         if extra_pvs != {}:
             s = writePvBlock(extra_pvs)
