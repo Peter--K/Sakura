@@ -5,17 +5,16 @@ from setuptools import setup
 
 import glob
 import os
-import sys
 
 exec(open('version.py').read())
 
-includes = ['numpy', 'scipy', 'wx']
+includes = ['netCDF4', 'numpy', 'scipy', 'wx']
 
 packages = []
 
 excludes = ['email', 'Finder', 'jinja2', 'nose', 'xml']
 
-data_files = []
+data_files = glob.glob('./*.ini')
 data_folders = [('resources', 'resources')]
 
 # Parsing folders and building the data_files table
