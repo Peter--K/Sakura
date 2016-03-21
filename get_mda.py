@@ -659,15 +659,17 @@ def getAverage(goodPixels, det):
     for i in goodPixels:
         averageMu = averageMu + det[i].weightedSpec
         averageChi = averageChi + det[i].chi
-    averageMu = averageMu / len(goodPixels)
+    averageMu = averageMu / len(goodPixels) * 100.0
     averageChi = averageChi / len(goodPixels)
+    #   multiply  averageMu  by scaling factor 100 to increase accuracy (otherwise, typical result = 0.000xxxx,
+    #   which some programs like VIPER/XANDA have difficulties reading in with full number of digits
     
     return averageMu, averageChi
 
 
 def writePvBlock(extra_pvs):
     """returns a multi-line string containing important PVs
-    to be written to the mda file.
+    to be written to the output ASCII file.
 
     """
     # Block Header
