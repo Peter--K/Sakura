@@ -107,7 +107,7 @@ def readICRParams(selection, e, threshold, detSize, home_path):
     """
     if detSize == 100 :
         filename = "100eleICRcorrect"
-    elif self.detSize == 36 :
+    elif detSize == 36 :
         filename = "36eleICRcorrect"
 
     if selection == 0 :
@@ -131,15 +131,18 @@ def detDeadCorr(det, goodPixels, ICRCorrParams):
     for i in goodPixels:
         ### DEAD TIME CORRECTION ###
         # use the next two lines for NEW DTC
-        det[i].ICRCorr(det[i].fpeaks, ICRCorrParams[i])
-        det[i].GetDead(det[i].fpeaksCorr, det[i].speaks)
+        if hasattr(det[i], 'ICRCorr'):
+            det[i].ICRCorr(det[i].fpeaks, ICRCorrParams[i])
 
-        # use next one line of OLD DTC
-        #det[i].GetDead(det[i].fpeaks, det[i].speaks)
+        if hasattr(det[i], 'fpeaksCorr'):
+            det[i].GetDead(det[i].fpeaksCorr, det[i].speaks)
+        else:
+            # use next one line of OLD DTC
+            det[i].GetDead(det[i].fpeaks, det[i].speaks)
 
         # don't modify line below
         det[i].DeadCorr(det[i].tau, det[i].roi)
-    print 'ICR correction paramgers (Pixel #0):', ICRCorrParams[0]
+    print 'ICR correction parameters (Pixel #0):', ICRCorrParams[0]
     print i
 
 
@@ -661,13 +664,13 @@ def getAverage(goodPixels, det):
         averageChi = averageChi + det[i].chi
     averageMu = averageMu / len(goodPixels)
     averageChi = averageChi / len(goodPixels)
-    
+
     return averageMu, averageChi
 
 
 def writePvBlock(extra_pvs):
     """returns a multi-line string containing important PVs
-    to be written to the mda file.
+    to be written to the output ASCII file.
 
     """
     # Block Header
@@ -814,8 +817,10 @@ def writeAverages(results, reader_type, detSize):
                     ))
 
         # write data
+        #   multiply  averageMu  by scaling factor 100 to increase accuracy (otherwise, typical result = 0.000xxxx,
+        #   which some programs like VIPER/XANDA have difficulties reading in with full number of digits
         print >>f, '#'
-        output = np.vstack((e, averageMu, trans[1:])).T
+        output = np.vstack((e, averageMu * 100, trans[1:])).T
         print >>f, '# E[eV]    mu(E)_fluo_average[a.u.]    I0[cts/sec]    I1[cts/sec]' + \
                      '    I2[cts/sec]    sample_time[sec]    encoder_Bragg_angle[deg]'
         np.savetxt(f, output, fmt='%14.6f %14.6f %14.6f %14.6f %14.6f %4.1f %14.6f')

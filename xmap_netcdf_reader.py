@@ -18,6 +18,12 @@ from collections import defaultdict
 NETCDF_READER = None
 uint16 = '>u2'
 uint32 = '>u4'
+
+try:
+    import scipy.io
+except:
+    print 'Could not import scipy.io'
+
 try:
     from scipy.io import netcdf_file
     NETCDF_READER = 'scipy'
@@ -27,6 +33,7 @@ except:
         NETCDF_READER = 'pupynere'
     except:
         print 'no netCDF reader found'
+print NETCDF_READER
 
 
 CHANNELS_PER_MODULE = 4

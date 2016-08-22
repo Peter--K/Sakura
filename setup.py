@@ -32,6 +32,8 @@ includes = []
 includes.append('numpy')
 includes.append('numpy.core')
 includes.append('scipy')
+includes.append('scipy.io')
+includes.append('scipy.io.netcdf')
 includes.append('logging')
 includes.append('wx')
 includes.append('wx.*')
@@ -56,7 +58,7 @@ for folder, relative_path in data_folders:
 
 # data_files.append(('.', ['gist_heat.cmap']))
 
-setup(\
+setup(
     #windows = ['Sakura.py'],
     console = ['Sakura.py'],
     author = "Peter Kappen, Gary Ruben",
