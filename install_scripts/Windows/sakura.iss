@@ -4,7 +4,7 @@
 #define MyAppName "Sakura"
 #define Home "..\.."
 #define MyAppExeName "sakura.exe"
-#define VERSION "1.0.1"
+#define VERSION "1.0.2"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.

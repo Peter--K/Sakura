@@ -45,7 +45,10 @@ excludes = ['_ssl', 'ipython', 'tcl',
 
 packages = ['scipy.io']
 
-data_files = []
+data_files = ['36eleICRcorrect-FPEAKS.ini', '36eleICRcorrect-highE.ini',
+              '36eleICRcorrect-lowE.ini', '100eleICRcorrect-FPEAKS.ini',
+              '100eleICRcorrect-highE.ini', '100eleICRcorrect-lowE.ini',
+              'LICENSE', 'README.md', 'gist_heat.cmap']
 data_folders = [('resources', 'resources')]
 
 # Parsing folders and building the data_files table
