@@ -32,6 +32,8 @@ includes = []
 includes.append('numpy')
 includes.append('numpy.core')
 includes.append('scipy')
+includes.append('scipy.io')
+includes.append('scipy.io.netcdf')
 includes.append('logging')
 includes.append('wx')
 includes.append('wx.*')
@@ -43,7 +45,10 @@ excludes = ['_ssl', 'ipython', 'tcl',
 
 packages = ['scipy.io']
 
-data_files = []
+data_files = ['36eleICRcorrect-FPEAKS.ini', '36eleICRcorrect-highE.ini',
+              '36eleICRcorrect-lowE.ini', '100eleICRcorrect-FPEAKS.ini',
+              '100eleICRcorrect-highE.ini', '100eleICRcorrect-lowE.ini',
+              'LICENSE', 'README.md', 'gist_heat.cmap']
 data_folders = [('resources', 'resources')]
 
 # Parsing folders and building the data_files table
@@ -56,7 +61,7 @@ for folder, relative_path in data_folders:
 
 # data_files.append(('.', ['gist_heat.cmap']))
 
-setup(\
+setup(
     #windows = ['Sakura.py'],
     console = ['Sakura.py'],
     author = "Peter Kappen, Gary Ruben",

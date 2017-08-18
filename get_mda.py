@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 #
 # careful with the variable "goodPixels";
 #   * we have "self.goodPixels" in the GUI code which is managed over there
@@ -18,6 +16,7 @@
 
 
 import os
+import os.path
 import numpy as np
 import readMDA
 #import pylab as pl
@@ -36,7 +35,6 @@ import edge_tables as etab
 class pixel(object):
     """Class to describe a detector pixel and its 'contents'.
     Will make 100 instances later to represent 100-element detector.
-
     """
     def __init__(self, pixNum):
         self.pixNum = pixNum
@@ -49,7 +47,6 @@ class pixel(object):
     def NormT(self, tsample):
         """ normalise all raw data (FastPeaks, SlowPeaks, ROI) to sampling time
         tsample.
-
         """
         self.fpeaks = np.divide(np.ndarray.flatten(self.fpeaks), tsample)
         self.speaks = np.divide(np.ndarray.flatten(self.speaks), tsample)
@@ -81,10 +78,8 @@ class pixel(object):
 
 def makeDet(detSize, scanSize):
     """Combines 100 pixels into one multi-element detector.
-
     Returns:
     a list of size "detSize" (e.g., 100) "Pixel" objects
-
     """
     det = [pixel(i) for i in np.arange(detSize)]
     for j in np.arange(detSize):
@@ -94,7 +89,6 @@ def makeDet(detSize, scanSize):
 
 def readICRParams(selection, e, threshold, detSize, home_path):
     """Reads in detector deadtime parameter file to correct ICR
-
     Parameters:
       selection = type of dead-time correction;
                   0 = ICR_correct / OCR     (preferred option; default; see GUI)
@@ -107,7 +101,7 @@ def readICRParams(selection, e, threshold, detSize, home_path):
     """
     if detSize == 100 :
         filename = "100eleICRcorrect"
-    elif self.detSize == 36 :
+    elif detSize == 36 :
         filename = "36eleICRcorrect"
 
     if selection == 0 :
@@ -118,37 +112,37 @@ def readICRParams(selection, e, threshold, detSize, home_path):
     elif selection == 1 :
         filename = filename + "-FPEAKS.ini"
 
-    ICRCorrParams = np.loadtxt(home_path+"\\"+filename)
+    ICRCorrParams = np.loadtxt(os.path.join(home_path, filename))
 
     return ICRCorrParams
 
 
 def detDeadCorr(det, goodPixels, ICRCorrParams):
     """Correct dead time ("tau") for each detector pixel
-
     """
     goodPixels = np.compress(goodPixels >= 0, goodPixels)
     for i in goodPixels:
         ### DEAD TIME CORRECTION ###
         # use the next two lines for NEW DTC
-        det[i].ICRCorr(det[i].fpeaks, ICRCorrParams[i])
-        det[i].GetDead(det[i].fpeaksCorr, det[i].speaks)
+        if hasattr(det[i], 'ICRCorr'):
+            det[i].ICRCorr(det[i].fpeaks, ICRCorrParams[i])
 
-        # use next one line of OLD DTC
-        #det[i].GetDead(det[i].fpeaks, det[i].speaks)
+        if hasattr(det[i], 'fpeaksCorr'):
+            det[i].GetDead(det[i].fpeaksCorr, det[i].speaks)
+        else:
+            # use next one line of OLD DTC
+            det[i].GetDead(det[i].fpeaks, det[i].speaks)
 
         # don't modify line below
         det[i].DeadCorr(det[i].tau, det[i].roi)
-    print 'ICR correction paramgers (Pixel #0):', ICRCorrParams[0]
+    print 'ICR correction parameters (Pixel #0):', ICRCorrParams[0]
     print i
 
 
 def searchStr(f, search):
     """Skip parts of the mda ASCII header (find string "search")
-
     Returns:
     the last string read in before exiting the loop
-
     """
     line = ''
     while str.count(line, search) == 0:
@@ -160,10 +154,8 @@ def searchStr(f, search):
 
 def searchStrStarts(f, search):
     """Skips parts of mda ASCII header (find line starting with "search")
-
     Returns:
     the last string read in before exiting the loop
-
     """
     line = ''
     while not line.startswith(search):
@@ -177,10 +169,8 @@ def getHeader(f):
     """Extract scan information such as
         "scanSize" (number of energy points in the XAS scan
         "detSize"  (number of detector pixels for multi-element dets.; e.g. 100)
-
     Returns:
     list of above parameters
-
     """
 
     # work through header to get data dimensions (as LONGintegers)
@@ -200,14 +190,12 @@ def getHeader(f):
 
 def getData(fname):
     """Extract data from mda-ASCII file and distribute into Pixel objects
-
     Returns:
-    XAS scan data in a detector 'object' (variable "det") energy axis, 
+    XAS scan data in a detector 'object' (variable "det") energy axis,
     transmission data array and detector filled with fluo data
     (detector object simply full of '0' values if no fluorescence data available)
     Transmission data in "trans" comprises encoder_E, I0/1/2, sample_time, encoder_angle
     !! I0/1/2  are already normalised to t !!
-
     """
     mda = readMDA.readMDA(fname, verbose=True)
     scanData = mda[1]
@@ -221,8 +209,8 @@ def getData(fname):
     det = makeDet(detSize, scanSize)
 
     # read transmission data
-    pvColumnNames = ['EncEnergy:ActPos', 'scaler1:S2C', 'scaler1:S3C',
-                     'scaler1:S4C', 'scaler1.T', 'EncAngle:ActPos']
+    pvColumnNames = ['ENERGY_RBV', 'scaler1:S2C', 'scaler1:S3C',
+                     'scaler1:S4C', 'scaler1.T', 'BRAGG.RBV']
 
     trans = np.empty((len(pvColumnNames), scanSize))
     for series in scanData.d:
@@ -233,7 +221,7 @@ def getData(fname):
             pass
 
     ts = trans[pvColumnNames.index('scaler1.T')]    # get the sample time "t_s"
-    e = trans[pvColumnNames.index('EncEnergy:ActPos')] * 1000.0   # Energy axis (in eV !!)
+    e = trans[pvColumnNames.index('ENERGY_RBV')] * 1000.0   # Energy axis (in eV !!)
 
     # normalise I0, I1, I2 to sample_time ts (use string "scaler1:" as identifier)
     for i, name in enumerate(pvColumnNames):
@@ -263,7 +251,6 @@ def getData(fname):
 def getGoodPixels(det, detSize):
     """Check data from individual detector pixels for quality and
     remove any bad pixels from the list of pixels considered
-
     Returns:
     a 1-D array of "detSize" marking bad pixels with value "-2"
     """
@@ -358,10 +345,8 @@ def getGoodPixels(det, detSize):
 
 def normaliseI0(det, goodPixels, i0):
     """Normalise the individual, dead-time corrected spectra ("roiCorr") to I0
-
     Returns: nothing  (all handled internally in the Class of "pixel" objects)
                       (generates new pixel object attribute "det[*].roiCorrNorm")
-
     """
     goodPixels = np.compress(goodPixels >= 0, goodPixels)
     for i in goodPixels:
@@ -374,7 +359,6 @@ def getWeightFactors(det, e, e0, goodPixels, TCRaverage, ROIaverage, weightType=
               (= edge-step / pre-edge-background-intensity)
     Returns: nothing but writes weight factors
              into detector pixel Class as attribute to each pixel
-
     """
     # goodPixels is designed to include index values <0 to mark bad pixels;
     #    thus, needs compressing out all indices <0 first before using in a loop
@@ -479,20 +463,18 @@ def getWeightFactors(det, e, e0, goodPixels, TCRaverage, ROIaverage, weightType=
     infmask = np.isinf(weights)
     weights[infmask] = np.nanmax(weights[~infmask])
     weights = weights / np.nanmax(weights)
-    
+
     # append weight factors as attributes to detector Pixels Objects
-    for i in goodPixels:        
+    for i in goodPixels:
         det[i].weightFactor = weights[i]
-    
+
     return weights ####, preEdgeCurve, postEdgeCurve
 
 
 def applyWeights(det, goodPixels):
     """Apply weight factors to the individual spectra
-
     Returns: nothing  (handled in "pixel" objects)
                       (generates new pixel object attribute "det[*].weightedSpec")
-
     """
     goodPixels = np.compress(goodPixels >= 0, goodPixels)
     for i in goodPixels:
@@ -503,9 +485,7 @@ def pearsonr(x, y):
     """
     Calculates a Pearson correlation coefficient and the p-value for testing
     non-correlation.
-
     This is scipy's pearsonr function with the 2-tailed p-value return-value removed
-
     The Pearson correlation coefficient measures the linear relationship
     between two datasets. Strictly speaking, Pearson's correlation requires
     that each dataset be normally distributed. Like other correlation
@@ -513,27 +493,22 @@ def pearsonr(x, y):
     correlation. Correlations of -1 or +1 imply an exact linear
     relationship. Positive correlations imply that as x increases, so does
     y. Negative correlations imply that as x increases, y decreases.
-
     The p-value roughly indicates the probability of an uncorrelated system
     producing datasets that have a Pearson correlation at least as extreme
     as the one computed from these datasets. The p-values are not entirely
     reliable but are probably reasonable for datasets larger than 500 or so.
-
     Parameters
     ----------
     x : (N,) array_like
         Input
     y : (N,) array_like
         Input
-
     Returns
     -------
     Pearson's correlation coefficient
-
     References
     ----------
     http://www.statsoft.com/textbook/glosp.html#Pearson%20Correlation
-
     """
     # x and y should have same length.
     x = np.asarray(x)
@@ -556,10 +531,8 @@ def pearsonr(x, y):
 
 def getCorrels(det, goodPixels):
     """Compute spectra correlation coefficients (using Pearsons Correlation)
-
     Returns: array "correls" of size "detSize", containing average correlation
             coefficient of pixel i with all other good pixels {0...i-1, i+1... n}
-
     """
     # goodPixels is designed to include index values <0 to mark bad pixels;
     #    thus, needs compressing out all indices <0 first before using in a loop
@@ -577,9 +550,7 @@ def getCorrels(det, goodPixels):
 
 def getE0(e):
     """Estimate which edge position (E0) might be most adequate
-
     Returns: e0
-
     """
     # use simple approach:
     #   E0 is within the first 300 eV of the scan;
@@ -619,7 +590,7 @@ def getE0(e):
     sortIndices.reverse()
     for j in range(len(result)) :                     ## result is a list containing 3 lists; len(result) is 3
         result[j] = [result[j][i] for i in sortIndices]
-        
+
     # take the list items that correspond to 'K' shells and put them up the front
     #     this gives order K -> L3 -> L2 -> L1
     where_k = np.where(np.asarray(result[1]) == 'K')[0]
@@ -627,10 +598,10 @@ def getE0(e):
         result[0].insert( 0,result[0].pop() )
         result[1].insert( 0,result[1].pop() )
         result[2].insert( 0,result[2].pop() )
-    
+
     print result
-    
-    
+
+
     ##temp = []     # empty array
     ##for i in range(len(result)):    # loop over subarrays;
     ##    for j in sortIndices:       # in each subarray, loop over items in order of sorted indices
@@ -646,9 +617,7 @@ def getE0(e):
 def getAverage(goodPixels, det):
     """Compute the average of all weighted, deadtime corrected spectra
     from det[i].weightedSpec ( which is = det[i].roiCorr * det[i].weightFactor)
-
     This creates class attributes "self.averageMu" "[...]Chi"
-
     """
     # goodPixels is designed to include index values <0 to mark bad pixels;
     #    thus, needs compressing out all indices <0 first before using in a loop
@@ -668,7 +637,6 @@ def getAverage(goodPixels, det):
 def writePvBlock(extra_pvs):
     """returns a multi-line string containing important PVs
     to be written to the output ASCII file.
-
     """
     # Block Header
     s = dedent("""\
@@ -690,12 +658,10 @@ def writePvBlock(extra_pvs):
 def writeAverages(results, reader_type, detSize):
     """Produces an output file containing averaged data and meta-information
     and writes this file to disk.
-
     Arguments:
     results - Results() class instance
     reader_type - String representing current reader module in use: 'gnc' or 'gmda'
     detSize - number of detector pixels
-
     """
     mdaOutName = results.fname
     goodPixels = results.goodPixels
@@ -720,7 +686,7 @@ def writeAverages(results, reader_type, detSize):
     # note that "numCol" needs to be integer for the iterable to work
     numCols = int(np.round(np.sqrt(detSize)))
     nPix_of = lambda x: izip(*[chain(x, repeat(None, (numCols-1) ))]*numCols)
-    
+
     asciiFilename = mdaOutName.replace('.mda', '.asc')
     try:
         open(asciiFilename, 'r')
@@ -757,12 +723,12 @@ def writeAverages(results, reader_type, detSize):
             # ----------------------------------------------
             #\
             """)
-        
+
         output = ['{:02d}'.format(i) if i > 0 else '--' for i in goodPixels+1]
         for items in nPix_of(output):
             print >>f, '#',
             print >>f, ' '.join(items)
-        
+
         # write matrix of correlation coefficients
         print >>f, dedent("""\
             #
@@ -775,7 +741,7 @@ def writeAverages(results, reader_type, detSize):
         for items in nPix_of(output):
             print >>f, '#',
             print >>f, '  '.join(items)
-        
+
         # write matrix of weight factors
         print >>f, dedent("""\
             #
@@ -788,9 +754,9 @@ def writeAverages(results, reader_type, detSize):
         for items in nPix_of(output):
             print >>f, '#',
             print >>f, '  '.join(items)
-        
+
         print >>f, '#'
-        
+
         # Write PVs of interest
         if extra_pvs != {}:
             s = writePvBlock(extra_pvs)

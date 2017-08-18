@@ -236,8 +236,8 @@ def highest_available_scandata(detector, scanSize):
     for i in range(scanSize):
         try:
             detector.det[0].pixel_header_mode1_item(i, 0, 0, 'tag0', check_validity=False)
-        except:
-            print 'netCDF data truncated'
+        except Exception as exc:
+            print 'netCDF data truncated', exc.message
             i = i - 1
             break
     return i + 1
@@ -255,17 +255,18 @@ def getData(fname):
     """
     # get the path to the netCDF files from the mda file
     mda = readMDA.readMDA(fname, verbose=False)
-    timestamp = getExtraPV(mda, 'CUR_TIME_STAMP')[-1][0]
+    netcdf_basename = os.path.splitext(os.path.basename(fname))[0]
     netcdf_directory = os.path.join(os.path.dirname(os.path.abspath(fname)),
-                                    'out_{}'.format(timestamp))
+                                    netcdf_basename)
+    netcdf_filepattern = '{}_([0-9]*)\.nc'.format(netcdf_basename)
 
     scanData = mda[1]
     scanSize = scanData.npts
 
     # create and set the reader for the fluorescence detector
-    detector_data = DetectorData(shape=(10, 10), pixelsteps_per_buffer=1,
+    detector_data = DetectorData(shape=(6, 6), pixelsteps_per_buffer=1,
         buffers_per_file=1, dirpaths=netcdf_directory,
-        filepattern='ioc5[3-4]_([0-9]*)\.nc', mca_bins=2048, first_file_n=1)
+        filepattern=netcdf_filepattern, mca_bins=2048, first_file_n=1)
 
     detector = Detector(detector_data)
 

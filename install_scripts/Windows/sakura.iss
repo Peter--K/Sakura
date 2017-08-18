@@ -4,7 +4,7 @@
 #define MyAppName "Sakura"
 #define Home "..\.."
 #define MyAppExeName "sakura.exe"
-#define VERSION "0.3.1"
+#define VERSION "1.0.2"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -35,7 +35,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: "{#Home}\dist\*"; DestDir: "{app}"; Flags: "ignoreversion recursesubdirs"
+Source: "{#Home}\dist_{#VERSION}\*"; DestDir: "{app}"; Flags: "ignoreversion recursesubdirs"
 Source: "{#Home}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Home}\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Home}\resources\*.ico"; DestDir: "{app}\resources"; Flags: ignoreversion
